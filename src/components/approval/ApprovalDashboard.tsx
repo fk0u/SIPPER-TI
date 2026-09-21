@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { LeaveCard } from '@/components/leave/LeaveCard';
 import { LeaveStatus } from '@/types/database';
+import { CountUp } from '@/components/reactbits/CountUp';
 import {
   CheckCircle2,
   Clock,
@@ -44,14 +45,12 @@ export const ApprovalDashboard: React.FC = () => {
     return true;
   });
 
-  const isSupervisor = user?.role === 'km' || user?.role === 'sipen';
-
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       
       {/* Header Bento Banner */}
       <div className="doppelrand-shell">
-        <div className="doppelrand-core p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="doppelrand-core p-5 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-sm bg-emerald-500 animate-pulse" />
@@ -60,7 +59,7 @@ export const ApprovalDashboard: React.FC = () => {
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-              <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400 shrink-0" />
               Dashboard Approval Perizinan
             </h1>
             <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md leading-relaxed">
@@ -68,14 +67,14 @@ export const ApprovalDashboard: React.FC = () => {
             </p>
           </div>
 
-          <span className="px-3 py-1 rounded-md text-xs font-mono font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30">
+          <span className="px-3 py-1 rounded-md text-xs font-mono font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30 shrink-0">
             Akses: {user?.role.toUpperCase()}
           </span>
         </div>
       </div>
 
-      {/* Stats Bento Grid (Non-pill rounded-2xl) */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+      {/* Stats Bento Grid with Responsive Breakpoints */}
+      <div className="grid grid-cols-1 xs:grid-cols-3 sm:grid-cols-3 gap-3 sm:gap-4">
         <button
           onClick={() => setStatusFilter('pending')}
           className={`p-4 sm:p-5 rounded-2xl border text-left transition-all active:scale-[0.98] ${
@@ -84,11 +83,13 @@ export const ApprovalDashboard: React.FC = () => {
               : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10'
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
             <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Menunggu</span>
             <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-mono">{pendingCount}</div>
+          <div className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-mono">
+            <CountUp to={pendingCount} duration={0.8} />
+          </div>
           <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-1 block font-mono uppercase">Perlu Tindakan</span>
         </button>
 
@@ -100,11 +101,13 @@ export const ApprovalDashboard: React.FC = () => {
               : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10'
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
             <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Disetujui</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-mono">{approvedCount}</div>
+          <div className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-mono">
+            <CountUp to={approvedCount} duration={0.8} />
+          </div>
           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 block font-mono uppercase">Telah Diverifikasi</span>
         </button>
 
@@ -116,17 +119,19 @@ export const ApprovalDashboard: React.FC = () => {
               : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10'
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
             <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Ditolak</span>
             <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-mono">{rejectedCount}</div>
+          <div className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-mono">
+            <CountUp to={rejectedCount} duration={0.8} />
+          </div>
           <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium mt-1 block font-mono uppercase">Tidak Sah / Buram</span>
         </button>
       </div>
 
       {/* Filter and Search Bar (Non-pill rounded-xl) */}
-      <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-white/5 p-4 rounded-2xl flex flex-col sm:flex-row gap-3 shadow-sm">
+      <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-white/5 p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row gap-3 shadow-sm">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
@@ -139,31 +144,32 @@ export const ApprovalDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
-          <select
-            value={courseFilter}
-            onChange={(e) => setCourseFilter(e.target.value)}
-            className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="all">Semua Mata Kuliah</option>
-            {courses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.code} - {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="relative flex-1 sm:flex-initial">
+            <select
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value)}
+              className="w-full sm:w-auto bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="all">Semua Mata Kuliah</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code} - {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <button
-          onClick={() => setStatusFilter('all')}
-          className={`px-4 py-2 rounded-lg text-xs font-medium transition active:scale-[0.98] ${
-            statusFilter === 'all'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-white/5'
-          }`}
-        >
-          Semua Status
-        </button>
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-medium transition whitespace-nowrap active:scale-[0.98] ${
+              statusFilter === 'all'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-white/5'
+            }`}
+          >
+            Semua
+          </button>
+        </div>
       </div>
 
       {/* List of Requests */}
@@ -190,3 +196,5 @@ export const ApprovalDashboard: React.FC = () => {
     </div>
   );
 };
+
+export default ApprovalDashboard;

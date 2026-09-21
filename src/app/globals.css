@@ -88,11 +88,21 @@ body {
   transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+@keyframes shine {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: -100% 50%;
+  }
+}
+
+
 /* ============================================================================ */
 /* THEME SWITCH STYLES (From Uiverse.io by mamyapro123) */
 /* ============================================================================ */
 .theme-switch {
-  --toggle-size: 13.5px;
+  --toggle-size: 8.5px;
   --container-width: 5.625em;
   --container-height: 2.5em;
   --container-radius: 0.38em;
@@ -114,6 +124,13 @@ body {
   display: inline-block;
   vertical-align: middle;
 }
+
+@media (max-width: 640px) {
+  .theme-switch {
+    --toggle-size: 8px;
+  }
+}
+
 
 .theme-switch,
 .theme-switch *,

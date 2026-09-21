@@ -6,6 +6,9 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { LeaveCard } from '@/components/leave/LeaveCard';
 import { LeaveStatus } from '@/types/database';
+import { ShinyText } from '@/components/reactbits/ShinyText';
+import { CountUp } from '@/components/reactbits/CountUp';
+import { SpotlightCard } from '@/components/reactbits/SpotlightCard';
 import {
   Plus,
   CheckSquare,
@@ -16,6 +19,7 @@ import {
   RotateCcw,
   ArrowRight,
   Layers,
+  Calendar,
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -27,14 +31,16 @@ export default function HomePage() {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="min-h-[75dvh] flex flex-col items-center justify-center text-center p-6 space-y-6">
-        <div className="doppelrand-shell max-w-md w-full">
-          <div className="doppelrand-core p-8 text-center space-y-5">
+      <div className="min-h-[75dvh] flex flex-col items-center justify-center text-center p-4 sm:p-6 space-y-6">
+        <SpotlightCard className="max-w-md w-full" spotlightColor="rgba(59, 130, 246, 0.15)">
+          <div className="p-6 sm:p-8 text-center space-y-5">
             <div className="w-14 h-14 rounded-2xl bg-blue-600/15 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 flex items-center justify-center mx-auto shadow-inner">
               <GraduationCap className="w-7 h-7" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">SIPPER-TI Portal</h1>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                <ShinyText text="SIPPER-TI Portal" />
+              </h1>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Sistem Informasi Perizinan & Presensi Kelas Internasional Teknik Informatika Universitas Muhammadiyah Kalimantan Timur.
               </p>
@@ -47,7 +53,7 @@ export default function HomePage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-        </div>
+        </SpotlightCard>
       </div>
     );
   }
@@ -81,32 +87,32 @@ export default function HomePage() {
   const isSupervisor = user.role === 'km' || user.role === 'sipen';
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       
       {/* ========================================================================= */}
       {/* 1. HERO BENTO SECTION (Asymmetrical Bento with Double-Bezel Hardware Look) */}
       {/* ========================================================================= */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
         
         {/* Left Hero Main Card (col-span-8) */}
         <div className="lg:col-span-8 doppelrand-shell">
-          <div className="doppelrand-core p-6 sm:p-8 flex flex-col justify-between h-full space-y-6">
+          <div className="doppelrand-core p-5 sm:p-8 flex flex-col justify-between h-full space-y-5 sm:space-y-6">
             
             {/* Top Tag without pill */}
-            <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-[0.18em] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-[0.16em] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30">
                 <span className="w-1.5 h-1.5 rounded-sm bg-blue-600 dark:bg-blue-400 animate-pulse" />
-                Semester 2026/2027 Ganjil
+                Semester Ganjil 2026/2027
               </span>
               <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                Teknik Informatika Intl
+                Teknik Informatika UMKT
               </span>
             </div>
 
             {/* Headline and Identity */}
-            <div className="space-y-3">
-              <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
-                Halo, {user.full_name}
+            <div className="space-y-2 sm:space-y-3">
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+                Halo, <ShinyText text={user.full_name} speed={5} />
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-[55ch] leading-relaxed">
                 Portal perizinan resmi kelas internasional. Ajukan izin sakit berlampiran surat dokter, dispensasi lomba, atau verifikasi kehadiran rekan sekelas.
@@ -114,10 +120,10 @@ export default function HomePage() {
             </div>
 
             {/* Action Buttons (Non-pill rounded-xl) */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
               <Link
                 href="/leave/new"
-                className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98]"
+                className="group inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98] w-full sm:w-auto text-center"
               >
                 <span>Ajukan Izin Baru</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -126,30 +132,32 @@ export default function HomePage() {
               {isSupervisor && (
                 <Link
                   href="/approval"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-850 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition active:scale-[0.98]"
+                  className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-850 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition active:scale-[0.98] flex-1 sm:flex-initial"
                 >
-                  <CheckSquare className="w-4 h-4" />
+                  <CheckSquare className="w-4 h-4 shrink-0" />
                   <span>Review Izin ({pendingCount})</span>
                 </Link>
               )}
 
               <Link
                 href="/admin/tokens"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-850 text-purple-700 dark:text-purple-400 border border-purple-500/30 text-xs font-semibold transition active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-850 text-purple-700 dark:text-purple-400 border border-purple-500/30 text-xs font-semibold transition active:scale-[0.98] flex-1 sm:flex-initial"
                 title="Kelola Token Dosen"
               >
-                <KeyRound className="w-4 h-4" />
-                <span className="hidden sm:inline">Link Dosen</span>
+                <KeyRound className="w-4 h-4 shrink-0" />
+                <span>Link Dosen</span>
               </Link>
             </div>
 
           </div>
         </div>
 
-        {/* Right Hero Metric Card (col-span-4) */}
-        <div className="lg:col-span-4 doppelrand-shell">
-          <div className="doppelrand-core p-6 flex flex-col justify-between h-full space-y-4">
-            
+        {/* Right Hero Metric Card (col-span-4) with SpotlightCard effect */}
+        <div className="lg:col-span-4">
+          <SpotlightCard
+            className="p-5 sm:p-6 flex flex-col justify-between h-full space-y-4 shadow-lg"
+            spotlightColor="rgba(37, 99, 235, 0.16)"
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/5 pb-3">
               <span className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Metrik Presensi Kelas
@@ -160,28 +168,38 @@ export default function HomePage() {
             </div>
 
             {/* Quick Counters (Non-pill rounded-xl) */}
-            <div className="grid grid-cols-2 gap-3 py-1">
-              <div className="bg-slate-100 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-white/5 space-y-1">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 py-1">
+              <div className="bg-slate-100/90 dark:bg-slate-950/70 p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-white/5 space-y-1">
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-mono uppercase">Izin Pending</span>
-                <span className="text-xl sm:text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">{pendingCount}</span>
+                <span className="text-2xl sm:text-3xl font-bold font-mono text-amber-600 dark:text-amber-400">
+                  <CountUp to={pendingCount} duration={0.8} />
+                </span>
                 <span className="text-[9px] text-amber-600/80 dark:text-amber-400/80 block">Menunggu validasi</span>
               </div>
 
-              <div className="bg-slate-100 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-white/5 space-y-1">
+              <div className="bg-slate-100/90 dark:bg-slate-950/70 p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-white/5 space-y-1">
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-mono uppercase">Izin Disetujui</span>
-                <span className="text-xl sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{approvedCount}</span>
+                <span className="text-2xl sm:text-3xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                  <CountUp to={approvedCount} duration={0.8} />
+                </span>
                 <span className="text-[9px] text-emerald-600/80 dark:text-emerald-400/80 block">Terverifikasi</span>
               </div>
             </div>
 
             {/* Schedule Highlight */}
-            <div className="bg-slate-100 dark:bg-slate-950/80 p-3.5 rounded-xl border border-slate-200 dark:border-white/5 text-xs space-y-1">
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block">Jadwal Kuliah Hari Ini:</span>
-              <span className="text-slate-900 dark:text-white font-semibold block">{courses[0]?.code} - {courses[0]?.name}</span>
-              <span className="text-slate-600 dark:text-slate-400 text-[11px] block">{courses[0]?.lecturer_name}</span>
+            <div className="bg-slate-100/90 dark:bg-slate-950/80 p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-white/5 text-xs space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+                <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                <span>Jadwal Kuliah Hari Ini:</span>
+              </div>
+              <span className="text-slate-900 dark:text-white font-semibold block truncate">
+                {courses[0]?.code} - {courses[0]?.name}
+              </span>
+              <span className="text-slate-600 dark:text-slate-400 text-[11px] block truncate">
+                {courses[0]?.lecturer_name}
+              </span>
             </div>
-
-          </div>
+          </SpotlightCard>
         </div>
 
       </section>
@@ -192,14 +210,14 @@ export default function HomePage() {
       <section className="space-y-4">
         
         {/* Filter and Search Bar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
           
           {/* Filter Tabs (Non-pill rounded-lg) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
             {[
               { id: 'all', label: 'Semua Izin' },
               { id: 'my', label: `Izin Saya (${myRequestsCount})` },
-              { id: 'pending', label: 'Menunggu Review' },
+              { id: 'pending', label: 'Menunggu' },
               { id: 'approved', label: 'Disetujui' },
               { id: 'rejected', label: 'Ditolak' },
             ].map((tab) => (
@@ -218,8 +236,8 @@ export default function HomePage() {
           </div>
 
           {/* Search box & reset data button */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-64">
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"

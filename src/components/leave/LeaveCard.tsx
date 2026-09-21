@@ -79,28 +79,30 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({ request }) => {
         <div className="doppelrand-core p-5 sm:p-6 space-y-4">
           
           {/* Top Header: Student info & Status badge */}
-          <div className="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-white/5 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600/15 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-sm font-mono shadow-inner">
+          <div className="flex items-start justify-between gap-2.5 sm:gap-3 border-b border-slate-200 dark:border-white/5 pb-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-600/15 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-xs sm:text-sm font-mono shadow-inner shrink-0">
                 {request.student.full_name.charAt(0)}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="font-semibold text-slate-900 dark:text-white text-sm tracking-tight">{request.student.full_name}</h4>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <h4 className="font-semibold text-slate-900 dark:text-white text-xs sm:text-sm tracking-tight truncate max-w-[180px] xs:max-w-[240px] sm:max-w-none">{request.student.full_name}</h4>
                   {isProxy && (
                     <span
-                      className="inline-flex items-center gap-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded-md"
+                      className="inline-flex items-center gap-1 text-[8px] sm:text-[9px] font-mono font-semibold uppercase tracking-wider bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded-md shrink-0"
                       title={`Diajukan oleh: ${request.creator.full_name}`}
                     >
                       <Users className="w-2.5 h-2.5" /> Proxy
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">NIM: {request.student.nim}</p>
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">NIM: {request.student.nim}</p>
               </div>
             </div>
 
-            <StatusBadge status={request.status} />
+            <div className="shrink-0">
+              <StatusBadge status={request.status} />
+            </div>
           </div>
 
           {/* Course & Schedule Details */}
@@ -190,18 +192,18 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({ request }) => {
             )}
 
             {canApprove && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <button
                   onClick={() => setIsRejectModalOpen(true)}
                   disabled={isProcessing}
-                  className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 transition disabled:opacity-50 flex items-center gap-1.5 active:scale-[0.98]"
+                  className="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 transition disabled:opacity-50 flex items-center justify-center gap-1.5 active:scale-[0.98]"
                 >
                   <XCircle className="w-3.5 h-3.5" /> Tolak
                 </button>
                 <button
                   onClick={handleApprove}
                   disabled={isProcessing}
-                  className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition disabled:opacity-50 flex items-center gap-1.5 active:scale-[0.98]"
+                  className="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition disabled:opacity-50 flex items-center justify-center gap-1.5 active:scale-[0.98]"
                 >
                   <CheckCircle className="w-3.5 h-3.5" /> Setujui
                 </button>

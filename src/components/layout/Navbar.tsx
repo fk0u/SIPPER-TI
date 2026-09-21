@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
+import { toast } from '@/store/useToastStore';
 import { UserRole } from '@/types/database';
 import { ThemeToggle } from './ThemeToggle';
 import {
@@ -32,6 +33,7 @@ export const Navbar: React.FC = () => {
 
   const handleLogout = () => {
     logout();
+    toast.info('Anda telah keluar.');
     router.push('/login');
   };
 
@@ -188,6 +190,7 @@ export const Navbar: React.FC = () => {
                             key={r}
                             onClick={() => {
                               switchRole(r);
+                              toast.info(`Peran aktif dialihkan ke: ${r.toUpperCase()}`);
                               setIsAccountOpen(false);
                             }}
                             className={`py-1.5 px-1.5 rounded-lg text-[10px] font-mono font-semibold uppercase tracking-wider transition border text-center active:scale-95 ${
@@ -213,6 +216,7 @@ export const Navbar: React.FC = () => {
                             key={p.id}
                             onClick={() => {
                               switchUser(p.id);
+                              toast.success(`Beralih ke akun: ${p.full_name}`);
                               setIsAccountOpen(false);
                             }}
                             className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition ${

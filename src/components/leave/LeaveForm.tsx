@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
+import { toast } from '@/store/useToastStore';
 import { LeaveType, LeaveAttachment } from '@/types/database';
 import {
   Calendar,
@@ -132,8 +133,10 @@ export const LeaveForm: React.FC = () => {
 
     if (!result.success) {
       setErrorMessage(result.error || 'Terjadi kesalahan saat mengirim pengajuan.');
+      toast.error(result.error || 'Terjadi kesalahan saat mengirim pengajuan.');
     } else {
       setIsSuccess(true);
+      toast.success('Pengajuan izin kuliah berhasil dikirim!');
       setTimeout(() => {
         router.push('/');
       }, 1000);

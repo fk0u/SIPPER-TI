@@ -41,6 +41,8 @@ interface LeaveState {
   submitLeave: (payload: SubmitLeavePayload) => Promise<{ success: boolean; error?: string; data?: LeaveRequestWithRelations }>;
   approveLeave: (requestId: string, verifier: Profile) => Promise<{ success: boolean; error?: string }>;
   rejectLeave: (requestId: string, reason: string, verifier: Profile) => Promise<{ success: boolean; error?: string }>;
+  batchApproveLeaves: (requestIds: string[], verifier: Profile) => Promise<{ success: boolean; count: number }>;
+  batchRejectLeaves: (requestIds: string[], reason: string, verifier: Profile) => Promise<{ success: boolean; count: number }>;
   
   generateLecturerToken: (courseId: string | null, label: string, creatorId: string) => LecturerToken;
   deleteLecturerToken: (tokenId: string) => void;
@@ -148,6 +150,55 @@ export const useLeaveStore = create<LeaveState>()(
           }),
         }));
         return { success: true };
+      },
+
+      batchApproveLeaves: async (requestIds, verifier) => {
+        const idSet = new Set(requestIds);
+        const now = new Date().toISOString();
+        let count = 0;
+        set((state) => ({
+          requests: state.requests.map((req) => {
+            if (idSet.has(req.id) && req.status === 'pending') {
+              count++;
+              return {
+                ...req,
+                status: 'approved',
+                rejection_reason: null,
+                verified_by: verifier.id,
+                verified_at: now,
+                updated_at: now,
+                verifier,
+              };
+            }
+            return req;
+          }),
+        }));
+        return { success: true, count };
+      },
+
+      batchRejectLeaves: async (requestIds, reason, verifier) => {
+        const idSet = new Set(requestIds);
+        const now = new Date().toISOString();
+        const trimmedReason = reason.trim() || 'Ditolak secara massal oleh verifikator.';
+        let count = 0;
+        set((state) => ({
+          requests: state.requests.map((req) => {
+            if (idSet.has(req.id) && req.status === 'pending') {
+              count++;
+              return {
+                ...req,
+                status: 'rejected',
+                rejection_reason: trimmedReason,
+                verified_by: verifier.id,
+                verified_at: now,
+                updated_at: now,
+                verifier,
+              };
+            }
+            return req;
+          }),
+        }));
+        return { success: true, count };
       },
 
       generateLecturerToken: (courseId, label, creatorId) => {

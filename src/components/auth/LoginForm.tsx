@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
+import { toast } from '@/store/useToastStore';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { SpotlightCard } from '@/components/reactbits/SpotlightCard';
 import { ShinyText } from '@/components/reactbits/ShinyText';
@@ -20,7 +21,7 @@ import {
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
-  const { loginWithGoogle, loginWithNIM, error, clearError, isLoading, switchUser } =
+  const { loginWithGoogle, loginWithNIM, error, clearError, isLoading, switchUser, profiles } =
     useAuthStore();
 
   const [nim, setNim] = useState('');
@@ -33,7 +34,10 @@ export const LoginForm: React.FC = () => {
     clearError();
     const res = await loginWithGoogle();
     if (res.success) {
+      toast.success('Login SSO Kampus berhasil!');
       router.push('/');
+    } else {
+      toast.error('Gagal masuk dengan akun Google Kampus.');
     }
   };
 
@@ -54,12 +58,17 @@ export const LoginForm: React.FC = () => {
 
     const res = await loginWithNIM(nim, password);
     if (res.success) {
+      toast.success('Berhasil masuk dengan NIM!');
       router.push('/');
+    } else {
+      toast.error('NIM atau kata sandi tidak cocok.');
     }
   };
 
   const handleQuickDemo = (userId: string) => {
     switchUser(userId);
+    const target = profiles.find((p) => p.id === userId);
+    toast.success(`Beralih ke profil demo: ${target?.full_name || 'Demo'}!`);
     router.push('/');
   };
 

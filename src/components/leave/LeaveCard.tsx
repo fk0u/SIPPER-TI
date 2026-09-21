@@ -6,6 +6,7 @@ import { StatusBadge } from './StatusBadge';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
+import { toast } from '@/store/useToastStore';
 import {
   Calendar,
   BookOpen,
@@ -21,9 +22,17 @@ import {
 
 interface LeaveCardProps {
   request: LeaveRequestWithRelations;
+  selectable?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export const LeaveCard: React.FC<LeaveCardProps> = ({ request }) => {
+export const LeaveCard: React.FC<LeaveCardProps> = ({
+  request,
+  selectable = false,
+  isSelected = false,
+  onToggleSelect,
+}) => {
   const { user } = useAuthStore();
   const { approveLeave, rejectLeave } = useLeaveStore();
 
@@ -47,18 +56,28 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({ request }) => {
   const handleApprove = async () => {
     if (!user) return;
     setIsProcessing(true);
-    await approveLeave(request.id, user);
+    const res = await approveLeave(request.id, user);
     setIsProcessing(false);
+    if (res.success) {
+      toast.success(`Pengajuan izin ${request.student.full_name} berhasil disetujui!`);
+    } else {
+      toast.error(res.error || 'Gagal menyetujui pengajuan izin.');
+    }
   };
 
   const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !rejectReason.trim()) return;
     setIsProcessing(true);
-    await rejectLeave(request.id, rejectReason, user);
+    const res = await rejectLeave(request.id, rejectReason, user);
     setIsProcessing(false);
     setIsRejectModalOpen(false);
     setRejectReason('');
+    if (res.success) {
+      toast.info(`Pengajuan izin ${request.student.full_name} telah ditolak.`);
+    } else {
+      toast.error(res.error || 'Gagal menolak pengajuan izin.');
+    }
   };
 
   const formatDisplayDate = (dString: string) => {
@@ -82,12 +101,31 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({ request }) => {
 
   return (
     <>
-      <div className="doppelrand-shell group hover:border-slate-300 dark:hover:border-white/20 transition-all duration-300">
+      <div
+        className={`doppelrand-shell group hover:border-slate-300 dark:hover:border-white/20 transition-all duration-300 ${
+          isSelected ? 'ring-2 ring-blue-500/60 border-blue-500/50' : ''
+        }`}
+      >
         <div className="doppelrand-core p-4 sm:p-6 space-y-4">
           
           {/* Top Header: Student info & Status badge */}
           <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 dark:border-white/5 pb-3.5">
             <div className="flex items-center gap-3 min-w-0">
+              {selectable && (
+                <button
+                  type="button"
+                  onClick={() => onToggleSelect && onToggleSelect(request.id)}
+                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition shrink-0 ${
+                    isSelected
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                      : 'bg-white dark:bg-black/40 border-slate-300 dark:border-white/20 hover:border-blue-500'
+                  }`}
+                  aria-label="Pilih perizinan ini"
+                >
+                  {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                </button>
+              )}
+
               <div className="w-10 h-10 rounded-xl bg-blue-600/10 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-500/25 flex items-center justify-center font-bold text-sm font-mono shadow-inner shrink-0">
                 {request.student.full_name.charAt(0)}
               </div>

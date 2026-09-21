@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { ToastContainer } from '@/components/ui/ToastContainer';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -49,6 +50,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-[100dvh] bg-[#f8fafc] dark:bg-[#06090e] text-[#090d16] dark:text-[#f8fafc] flex flex-col font-sans bg-grid-ambient selection:bg-blue-600/20 selection:text-blue-600 dark:selection:bg-blue-500/30 dark:selection:text-blue-300 pb-28 sm:pb-20 antialiased transition-colors duration-200">
+        {/* Global Toast Notifications */}
+        <ToastContainer />
+
         {/* Floating Island Navigation */}
         <Navbar />
 

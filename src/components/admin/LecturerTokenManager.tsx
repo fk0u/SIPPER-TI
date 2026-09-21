@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
+import { toast } from '@/store/useToastStore';
+import { QRCodeModal } from './QRCodeModal';
 import {
   KeyRound,
   Plus,
@@ -14,6 +16,7 @@ import {
   Sparkles,
   Share2,
   MessageCircle,
+  QrCode,
 } from 'lucide-react';
 
 export const LecturerTokenManager: React.FC = () => {
@@ -24,16 +27,22 @@ export const LecturerTokenManager: React.FC = () => {
   const [tokenLabel, setTokenLabel] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [activeQrToken, setActiveQrToken] = useState<{
+    url: string;
+    title: string;
+    courseName?: string;
+  } | null>(null);
 
   const handleCreateToken = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     const courseId = selectedCourseId === 'all' ? null : selectedCourseId;
-    generateLecturerToken(courseId, tokenLabel, user.id);
+    const newToken = generateLecturerToken(courseId, tokenLabel, user.id);
 
     setTokenLabel('');
     setIsSuccess(true);
+    toast.success('Tautan akses dosen berhasil dibuat!');
     setTimeout(() => setIsSuccess(false), 2500);
   };
 
@@ -42,6 +51,7 @@ export const LecturerTokenManager: React.FC = () => {
     const fullUrl = `${origin}/lecturer/${token}`;
     navigator.clipboard.writeText(fullUrl);
     setCopiedId(id);
+    toast.success('Tautan berhasil disalin ke clipboard!');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -52,6 +62,20 @@ export const LecturerTokenManager: React.FC = () => {
       `Halo Bapak/Ibu Dosen Pengampu,\n\nBerikut tautan rekapitulasi kehadiran dan perizinan mahasiswa Kelas Internasional Teknik Informatika UMKT (${label}):\n${fullUrl}\n\nTautan ini dapat diakses secara langsung tanpa login. Terima kasih.`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
+  const handleDeleteToken = (id: string) => {
+    deleteLecturerToken(id);
+    toast.info('Tautan akses dosen telah dihapus.');
+  };
+
+  const openQrModal = (token: string, label: string, courseName?: string) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    setActiveQrToken({
+      url: `${origin}/lecturer/${token}`,
+      title: label,
+      courseName,
+    });
   };
 
   return (
@@ -174,6 +198,15 @@ export const LecturerTokenManager: React.FC = () => {
                 {/* Actions */}
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-white/5">
                   <button
+                    onClick={() => openQrModal(token.token, token.label, token.course?.name)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/25 transition flex items-center gap-1.5 active:scale-95"
+                    title="Tampilkan QR Code untuk dipindai"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>QR Code</span>
+                  </button>
+
+                  <button
                     onClick={() => copyTokenUrl(token.token, token.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition flex items-center gap-1.5 active:scale-95 ${
                       copiedId === token.id
@@ -213,7 +246,7 @@ export const LecturerTokenManager: React.FC = () => {
                   </a>
 
                   <button
-                    onClick={() => deleteLecturerToken(token.id)}
+                    onClick={() => handleDeleteToken(token.id)}
                     className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition"
                     title="Hapus token"
                   >
@@ -225,6 +258,17 @@ export const LecturerTokenManager: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      {activeQrToken && (
+        <QRCodeModal
+          isOpen={!!activeQrToken}
+          onClose={() => setActiveQrToken(null)}
+          url={activeQrToken.url}
+          title={activeQrToken.title}
+          courseName={activeQrToken.courseName}
+        />
+      )}
 
     </div>
   );

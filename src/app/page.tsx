@@ -7,18 +7,15 @@ import { useLeaveStore } from '@/store/useLeaveStore';
 import { LeaveCard } from '@/components/leave/LeaveCard';
 import { LeaveStatus } from '@/types/database';
 import {
-  PlusCircle,
+  Plus,
   CheckSquare,
-  Clock,
-  CheckCircle2,
-  XCircle,
   Search,
-  Filter,
-  Users,
   KeyRound,
   GraduationCap,
   Sparkles,
   RotateCcw,
+  ArrowRight,
+  Layers,
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -30,35 +27,39 @@ export default function HomePage() {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center p-6 space-y-4">
-        <div className="p-4 bg-blue-600/20 text-blue-400 rounded-3xl border border-blue-500/30">
-          <GraduationCap className="w-10 h-10" />
+      <div className="min-h-[75dvh] flex flex-col items-center justify-center text-center p-6 space-y-6">
+        <div className="doppelrand-shell max-w-md w-full">
+          <div className="doppelrand-core p-8 text-center space-y-5">
+            <div className="w-14 h-14 rounded-2xl bg-blue-600/15 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 flex items-center justify-center mx-auto shadow-inner">
+              <GraduationCap className="w-7 h-7" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">SIPPER-TI Portal</h1>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Sistem Informasi Perizinan & Presensi Kelas Internasional Teknik Informatika Universitas Muhammadiyah Kalimantan Timur.
+              </p>
+            </div>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98]"
+            >
+              <span>Masuk ke Akun Kampus</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
-        <h1 className="text-2xl font-bold text-white">Selamat Datang di SIPPER-TI</h1>
-        <p className="text-xs text-slate-400 max-w-md">
-          Sistem Informasi Perizinan & Presensi Kelas Internasional Teknik Informatika UMKT.
-          Silakan masuk menggunakan Akun Kampus atau NIM untuk melanjutkan.
-        </p>
-        <Link
-          href="/login"
-          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-blue-900/30 transition"
-        >
-          Masuk ke Akun
-        </Link>
       </div>
     );
   }
 
   // Filter requests
   const filteredRequests = requests.filter((req) => {
-    // Tab filter
     if (activeTab === 'my') {
       if (req.student_id !== user.id && req.created_by !== user.id) return false;
     } else if (activeTab !== 'all') {
       if (req.status !== activeTab) return false;
     }
 
-    // Search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchName = req.student.full_name.toLowerCase().includes(q);
@@ -80,102 +81,135 @@ export default function HomePage() {
   const isSupervisor = user.role === 'km' || user.role === 'sipen';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       
-      {/* Welcome Banner Card */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/40 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/30">
-              Semester 2026/2027-1
-            </span>
-            <span className="text-xs text-slate-400">Kelas Internasional TI</span>
+      {/* ========================================================================= */}
+      {/* 1. HERO BENTO SECTION (Asymmetrical Bento with Double-Bezel Hardware Look) */}
+      {/* ========================================================================= */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* Left Hero Main Card (col-span-8) */}
+        <div className="lg:col-span-8 doppelrand-shell">
+          <div className="doppelrand-core p-6 sm:p-8 flex flex-col justify-between h-full space-y-6">
+            
+            {/* Top Tag without pill */}
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-[0.18em] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30">
+                <span className="w-1.5 h-1.5 rounded-sm bg-blue-600 dark:bg-blue-400 animate-pulse" />
+                Semester 2026/2027 Ganjil
+              </span>
+              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                Teknik Informatika Intl
+              </span>
+            </div>
+
+            {/* Headline and Identity */}
+            <div className="space-y-3">
+              <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
+                Halo, {user.full_name}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-[55ch] leading-relaxed">
+                Portal perizinan resmi kelas internasional. Ajukan izin sakit berlampiran surat dokter, dispensasi lomba, atau verifikasi kehadiran rekan sekelas.
+              </p>
+            </div>
+
+            {/* Action Buttons (Non-pill rounded-xl) */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <Link
+                href="/leave/new"
+                className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98]"
+              >
+                <span>Ajukan Izin Baru</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+
+              {isSupervisor && (
+                <Link
+                  href="/approval"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-850 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition active:scale-[0.98]"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  <span>Review Izin ({pendingCount})</span>
+                </Link>
+              )}
+
+              <Link
+                href="/admin/tokens"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-850 text-purple-700 dark:text-purple-400 border border-purple-500/30 text-xs font-semibold transition active:scale-[0.98]"
+                title="Kelola Token Dosen"
+              >
+                <KeyRound className="w-4 h-4" />
+                <span className="hidden sm:inline">Link Dosen</span>
+              </Link>
+            </div>
+
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">
-            Halo, {user.full_name}! 👋
-          </h1>
-          <p className="text-xs text-slate-400 max-w-lg leading-relaxed">
-            NIM: <strong className="text-slate-300 font-mono">{user.nim}</strong> • Status Akun:{' '}
-            <strong className="text-blue-400 uppercase font-semibold">{user.role}</strong>.
-            Gunakan portal ini untuk pengajuan surat sakit, dispensasi acara, atau verifikasi kehadiran kelas.
-          </p>
         </div>
 
-        {/* Quick Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <Link
-            href="/leave/new"
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-blue-900/30 transition flex items-center gap-2"
-          >
-            <PlusCircle className="w-4 h-4" /> Ajukan Izin Baru
-          </Link>
+        {/* Right Hero Metric Card (col-span-4) */}
+        <div className="lg:col-span-4 doppelrand-shell">
+          <div className="doppelrand-core p-6 flex flex-col justify-between h-full space-y-4">
+            
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/5 pb-3">
+              <span className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Metrik Presensi Kelas
+              </span>
+              <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-md font-medium">
+                Live Sinkron
+              </span>
+            </div>
 
-          {isSupervisor && (
-            <Link
-              href="/approval"
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-emerald-500/30 text-xs font-semibold rounded-xl transition flex items-center gap-2"
-            >
-              <CheckSquare className="w-4 h-4" /> Review Izin ({pendingCount})
-            </Link>
-          )}
+            {/* Quick Counters (Non-pill rounded-xl) */}
+            <div className="grid grid-cols-2 gap-3 py-1">
+              <div className="bg-slate-100 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-white/5 space-y-1">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-mono uppercase">Izin Pending</span>
+                <span className="text-xl sm:text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">{pendingCount}</span>
+                <span className="text-[9px] text-amber-600/80 dark:text-amber-400/80 block">Menunggu validasi</span>
+              </div>
 
-          <Link
-            href="/admin/tokens"
-            className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-purple-400 border border-purple-500/30 text-xs font-semibold rounded-xl transition flex items-center gap-1.5"
-            title="Kelola Link Dosen"
-          >
-            <KeyRound className="w-4 h-4" />
-          </Link>
-        </div>
-      </div>
+              <div className="bg-slate-100 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-white/5 space-y-1">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-mono uppercase">Izin Disetujui</span>
+                <span className="text-xl sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{approvedCount}</span>
+                <span className="text-[9px] text-emerald-600/80 dark:text-emerald-400/80 block">Terverifikasi</span>
+              </div>
+            </div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
-          <span className="text-slate-400 block text-[11px] mb-1">Pengajuan Saya</span>
-          <span className="text-2xl font-bold text-white font-mono">{myRequestsCount}</span>
-          <span className="text-[10px] text-slate-500 block mt-1">Diajukan/Diterima</span>
-        </div>
+            {/* Schedule Highlight */}
+            <div className="bg-slate-100 dark:bg-slate-950/80 p-3.5 rounded-xl border border-slate-200 dark:border-white/5 text-xs space-y-1">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block">Jadwal Kuliah Hari Ini:</span>
+              <span className="text-slate-900 dark:text-white font-semibold block">{courses[0]?.code} - {courses[0]?.name}</span>
+              <span className="text-slate-600 dark:text-slate-400 text-[11px] block">{courses[0]?.lecturer_name}</span>
+            </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
-          <span className="text-slate-400 block text-[11px] mb-1">Perlu Review</span>
-          <span className="text-2xl font-bold text-amber-400 font-mono">{pendingCount}</span>
-          <span className="text-[10px] text-amber-400/80 block mt-1">Izin belum ditinjau</span>
+          </div>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
-          <span className="text-slate-400 block text-[11px] mb-1">Izin Disetujui</span>
-          <span className="text-2xl font-bold text-emerald-400 font-mono">{approvedCount}</span>
-          <span className="text-[10px] text-emerald-400/80 block mt-1">Telah diverifikasi</span>
-        </div>
+      </section>
 
-        <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
-          <span className="text-slate-400 block text-[11px] mb-1">Mata Kuliah Aktif</span>
-          <span className="text-2xl font-bold text-blue-400 font-mono">{courses.length}</span>
-          <span className="text-[10px] text-slate-500 block mt-1">Semester 2026/2027</span>
-        </div>
-      </div>
-
-      {/* Filter and Search Section */}
-      <div className="space-y-3">
+      {/* ========================================================================= */}
+      {/* 2. RECENT LEAVE FEED & FILTER BAR */}
+      {/* ========================================================================= */}
+      <section className="space-y-4">
+        
+        {/* Filter and Search Bar */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           
-          {/* Filter Tabs */}
+          {/* Filter Tabs (Non-pill rounded-lg) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
             {[
               { id: 'all', label: 'Semua Izin' },
-              { id: 'my', label: 'Pengajuan Saya' },
-              { id: 'pending', label: 'Menunggu' },
+              { id: 'my', label: `Izin Saya (${myRequestsCount})` },
+              { id: 'pending', label: 'Menunggu Review' },
               { id: 'approved', label: 'Disetujui' },
               { id: 'rejected', label: 'Ditolak' },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap border ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap active:scale-[0.98] ${
                   activeTab === tab.id
-                    ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-900/20'
-                    : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800'
                 }`}
               >
                 {tab.label}
@@ -192,13 +226,13 @@ export default function HomePage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari nama, NIM, atau matkul..."
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono"
               />
             </div>
             <button
               onClick={resetToInitial}
               title="Reset data demo ke awal"
-              className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition shrink-0"
+              className="p-2 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-800 transition shrink-0 active:scale-[0.95]"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
@@ -214,21 +248,24 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 px-4 bg-slate-900/40 rounded-3xl border border-slate-800/60 space-y-3">
-            <Sparkles className="w-10 h-10 text-slate-600 mx-auto" />
-            <h3 className="text-sm font-semibold text-white">Tidak Ada Catatan Perizinan</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Belum ada data pengajuan perizinan yang sesuai dengan filter atau kata kunci pencarian Anda.
-            </p>
-            <Link
-              href="/leave/new"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl transition mt-2"
-            >
-              <PlusCircle className="w-4 h-4" /> Ajukan Izin Sekarang
-            </Link>
+          <div className="doppelrand-shell">
+            <div className="doppelrand-core text-center py-16 px-4 space-y-3">
+              <Sparkles className="w-10 h-10 text-slate-400 dark:text-slate-600 mx-auto" />
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Tidak Ada Catatan Perizinan</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                Belum ada data pengajuan perizinan yang sesuai dengan filter atau kata kunci pencarian Anda.
+              </p>
+              <Link
+                href="/leave/new"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-md transition mt-2 active:scale-[0.98]"
+              >
+                <Plus className="w-4 h-4" /> Ajukan Izin Sekarang
+              </Link>
+            </div>
           </div>
         )}
-      </div>
+
+      </section>
 
     </div>
   );

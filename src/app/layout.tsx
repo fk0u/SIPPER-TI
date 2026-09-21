@@ -15,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id" className="dark scroll-smooth">
-      <body className="min-h-[100dvh] bg-slate-950 text-slate-100 flex flex-col font-sans bg-grid-pattern selection:bg-blue-600/30 selection:text-blue-200 pb-24 sm:pb-16 antialiased">
+    <html lang="id" className="dark scroll-smooth" suppressHydrationWarning>
+      <body className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans bg-grid-pattern selection:bg-blue-600/30 selection:text-blue-200 pb-24 sm:pb-16 antialiased transition-colors">
         {/* Floating Island Navigation */}
         <Navbar />
         

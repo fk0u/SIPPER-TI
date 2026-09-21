@@ -11,7 +11,7 @@ interface SpotlightCardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const SpotlightCard: React.FC<SpotlightCardProps> = ({
   children,
   className = '',
-  spotlightColor = 'rgba(59, 130, 246, 0.12)',
+  spotlightColor = 'rgba(37, 99, 235, 0.14)',
   ...props
 }) => {
   const divRef = useRef<HTMLDivElement>(null);
@@ -24,21 +24,10 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
     setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
-  const handleFocus = () => {
-    setOpacity(1);
-  };
-
-  const handleBlur = () => {
-    setOpacity(0);
-  };
-
-  const handleMouseEnter = () => {
-    setOpacity(1);
-  };
-
-  const handleMouseLeave = () => {
-    setOpacity(0);
-  };
+  const handleFocus = () => setOpacity(1);
+  const handleBlur = () => setOpacity(0);
+  const handleMouseEnter = () => setOpacity(1);
+  const handleMouseLeave = () => setOpacity(0);
 
   return (
     <div
@@ -48,16 +37,21 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
       onBlur={handleBlur}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl transition-all ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-[#0b0f19]/85 backdrop-blur-2xl shadow-sm dark:shadow-2xl transition-all duration-300 ${className}`}
       {...props}
     >
-      {/* Spotlight Gradient */}
+      {/* Dynamic Cursor Spotlight Beam */}
       <div
-        className="pointer-events-none absolute -inset-px transition-opacity duration-300"
+        className="pointer-events-none absolute -inset-px transition-opacity duration-300 rounded-2xl"
         style={{
           opacity,
-          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 40%)`,
+          background: `radial-gradient(550px circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 45%)`,
         }}
+        aria-hidden="true"
+      />
+      {/* 1px Inner Highlight */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]"
         aria-hidden="true"
       />
       <div className="relative z-10">{children}</div>

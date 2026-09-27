@@ -7,10 +7,11 @@ import { DocumentViewerModal } from './DocumentViewerModal';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
+import { canVerifyRequest } from '@/lib/permissions';
+import { diffDaysInclusive, parseISODate } from '@/lib/date';
 import {
   Calendar,
   BookOpen,
-  User,
   Users,
   Paperclip,
   CheckCircle,
@@ -34,7 +35,7 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
   onToggleSelect,
 }) => {
   const { user } = useAuthStore();
-  const { approveLeave, rejectLeave } = useLeaveStore();
+  const { approveLeave, rejectLeave, courseSipen } = useLeaveStore();
 
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -42,16 +43,9 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
 
   const isProxy = request.created_by !== request.student_id;
-  const canApprove =
-    user &&
-    request.status === 'pending' &&
-    (user.role === 'km' || user.role === 'sipen');
+  const canApprove = canVerifyRequest(user, request, courseSipen);
 
-  // Calculate day count
-  const startDate = new Date(request.start_date);
-  const endDate = new Date(request.end_date);
-  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  const diffDays = diffDaysInclusive(request.start_date, request.end_date);
 
   const handleApprove = async () => {
     if (!user) return;
@@ -82,7 +76,7 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
 
   const formatDisplayDate = (dString: string) => {
     try {
-      const d = new Date(dString);
+      const d = parseISODate(dString);
       return d.toLocaleDateString('id-ID', {
         day: 'numeric',
         month: 'short',

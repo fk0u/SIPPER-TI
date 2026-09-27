@@ -41,7 +41,10 @@ export interface CourseSipen {
 
 export interface LeaveAttachment {
   name: string;
+  /** URL tampilan. Pada mode live berupa signed URL sementara (tidak disimpan di DB). */
   url: string;
+  /** Path objek di bucket `leave-attachments` (mode live). */
+  path?: string;
   type: string;
   size?: number;
 }
@@ -79,5 +82,26 @@ export interface LecturerToken {
   expires_at: string | null;
   created_by: string;
   created_at: string;
+  revoked_at?: string | null;
   course?: Course | null;
 }
+
+/** Baris izin minimum yang dikembalikan RPC `get_lecturer_recap` (tanpa alasan & lampiran). */
+export interface LecturerRecapLeave {
+  id: string;
+  course_id: string;
+  leave_type: LeaveType;
+  start_date: string;
+  end_date: string;
+  student_name: string;
+  student_nim: string;
+}
+
+export type LecturerRecapResult =
+  | { status: 'not_found' | 'expired' | 'revoked' }
+  | {
+      status: 'ok';
+      token: Pick<LecturerToken, 'label' | 'course_id' | 'expires_at'>;
+      courses: Course[];
+      leaves: LecturerRecapLeave[];
+    };

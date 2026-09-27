@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { canViewRequest, canVerifyRequest, isSupervisor } from '@/lib/permissions';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import { LeaveCard } from '@/components/leave/LeaveCard';
@@ -12,21 +13,18 @@ import {
   Clock,
   XCircle,
   Search,
-  BookOpen,
   Inbox,
   ShieldCheck,
-  Filter,
   X,
   CheckSquare,
   Square,
   AlertCircle,
   Check,
-  Trash2,
 } from 'lucide-react';
 
 export const ApprovalDashboard: React.FC = () => {
   const { user } = useAuthStore();
-  const { requests, courses, batchApproveLeaves, batchRejectLeaves } = useLeaveStore();
+  const { requests: allRequests, courses, courseSipen, batchApproveLeaves, batchRejectLeaves } = useLeaveStore();
 
   const [statusFilter, setStatusFilter] = useState<'all' | LeaveStatus>('pending');
   const [courseFilter, setCourseFilter] = useState<string>('all');
@@ -38,7 +36,10 @@ export const ApprovalDashboard: React.FC = () => {
   const [bulkRejectReason, setBulkRejectReason] = useState('');
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
 
-  const canManage = Boolean(user && (user.role === 'km' || user.role === 'sipen'));
+  const canManage = isSupervisor(user);
+  // Sipen hanya melihat mata kuliah yang dikelolanya; KM melihat semua.
+  const requests = allRequests.filter((r) => canViewRequest(user, r, courseSipen));
+  const isVerifiable = (r: (typeof requests)[number]) => canVerifyRequest(user, r, courseSipen);
 
   // Counters
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
@@ -61,7 +62,7 @@ export const ApprovalDashboard: React.FC = () => {
     return true;
   });
 
-  const pendingInView = filteredRequests.filter((r) => r.status === 'pending');
+  const pendingInView = filteredRequests.filter(isVerifiable);
   const allPendingSelected =
     pendingInView.length > 0 && pendingInView.every((r) => selectedIds.includes(r.id));
 
@@ -83,14 +84,13 @@ export const ApprovalDashboard: React.FC = () => {
   const handleBulkApprove = async () => {
     if (!user || selectedIds.length === 0) return;
     setIsProcessingBulk(true);
-    const countToApprove = selectedIds.length;
     const res = await batchApproveLeaves(selectedIds, user);
     setIsProcessingBulk(false);
     setSelectedIds([]);
     if (res.success) {
       toast.success(`${res.count} pengajuan izin berhasil disetujui sekaligus!`);
     } else {
-      toast.error('Gagal memproses persetujuan massal.');
+      toast.error(res.error || 'Gagal memproses persetujuan massal.');
     }
   };
 
@@ -106,7 +106,7 @@ export const ApprovalDashboard: React.FC = () => {
     if (res.success) {
       toast.info(`${res.count} pengajuan izin berhasil ditolak.`);
     } else {
-      toast.error('Gagal memproses penolakan massal.');
+      toast.error(res.error || 'Gagal memproses penolakan massal.');
     }
   };
 
@@ -286,7 +286,7 @@ export const ApprovalDashboard: React.FC = () => {
             <LeaveCard
               key={req.id}
               request={req}
-              selectable={canManage && req.status === 'pending'}
+              selectable={isVerifiable(req)}
               isSelected={selectedIds.includes(req.id)}
               onToggleSelect={toggleSelect}
             />

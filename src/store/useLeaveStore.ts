@@ -4,248 +4,367 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
   Course,
+  CourseSipen,
   LeaveAttachment,
   LeaveRequestWithRelations,
-  LeaveStatus,
   LeaveType,
   LecturerToken,
   Profile,
 } from '@/types/database';
-import { INITIAL_COURSES, INITIAL_LEAVE_REQUESTS, INITIAL_LECTURER_TOKENS } from '@/lib/mockData';
-import { useAuthStore } from './useAuthStore';
+import {
+  INITIAL_COURSES,
+  INITIAL_COURSE_SIPEN,
+  INITIAL_LEAVE_REQUESTS,
+  INITIAL_LECTURER_TOKENS,
+} from '@/lib/mockData';
+import { canManageTokens, canSubmitFor, canVerifyRequest } from '@/lib/permissions';
+import * as repo from '@/lib/data/supabaseRepository';
+import { useAuthStore, isDemoMode } from './useAuthStore';
 
-interface SubmitLeavePayload {
+export interface SubmitLeavePayload {
   student_id: string;
   course_id: string;
   leave_type: LeaveType;
   start_date: string;
   end_date: string;
   reason: string;
-  file_urls: LeaveAttachment[];
+  /** Berkas mentah dari form; diunggah (live) atau dikonversi (demo) di store. */
+  files: File[];
   created_by: string;
 }
+
+type Result<T = undefined> = { success: boolean; error?: string; data?: T };
 
 interface LeaveState {
   requests: LeaveRequestWithRelations[];
   courses: Course[];
+  courseSipen: CourseSipen[];
   lecturerTokens: LecturerToken[];
-  statusFilter: 'all' | LeaveStatus;
-  selectedCourseFilter: string; // 'all' or course_id
-  searchQuery: string;
+  isLoaded: boolean;
+  loadError: string | null;
 
   // Actions
-  setStatusFilter: (status: 'all' | LeaveStatus) => void;
-  setSelectedCourseFilter: (courseId: string) => void;
-  setSearchQuery: (query: string) => void;
-  
-  submitLeave: (payload: SubmitLeavePayload) => Promise<{ success: boolean; error?: string; data?: LeaveRequestWithRelations }>;
-  approveLeave: (requestId: string, verifier: Profile) => Promise<{ success: boolean; error?: string }>;
-  rejectLeave: (requestId: string, reason: string, verifier: Profile) => Promise<{ success: boolean; error?: string }>;
-  batchApproveLeaves: (requestIds: string[], verifier: Profile) => Promise<{ success: boolean; count: number }>;
-  batchRejectLeaves: (requestIds: string[], reason: string, verifier: Profile) => Promise<{ success: boolean; count: number }>;
-  
-  generateLecturerToken: (courseId: string | null, label: string, creatorId: string) => LecturerToken;
-  deleteLecturerToken: (tokenId: string) => void;
+  load: () => Promise<void>;
+  submitLeave: (payload: SubmitLeavePayload) => Promise<Result<LeaveRequestWithRelations>>;
+  approveLeave: (requestId: string, verifier: Profile) => Promise<Result>;
+  rejectLeave: (requestId: string, reason: string, verifier: Profile) => Promise<Result>;
+  batchApproveLeaves: (requestIds: string[], verifier: Profile) => Promise<{ success: boolean; count: number; error?: string }>;
+  batchRejectLeaves: (requestIds: string[], reason: string, verifier: Profile) => Promise<{ success: boolean; count: number; error?: string }>;
+  resolveAttachments: (files: LeaveAttachment[]) => Promise<LeaveAttachment[]>;
+
+  generateLecturerToken: (courseId: string | null, label: string, creator: Profile) => Promise<Result<LecturerToken>>;
+  deleteLecturerToken: (tokenId: string, actor: Profile) => Promise<Result>;
   resetToInitial: () => void;
+}
+
+const TOKEN_VALIDITY_DAYS = 180;
+/** Batas ukuran berkas yang disimpan sebagai data URL pada mode demo (localStorage terbatas ±5MB). */
+const DEMO_INLINE_LIMIT_BYTES = 750 * 1024;
+
+const errorMessage = (err: unknown, fallback: string) =>
+  err instanceof Error && err.message ? err.message : fallback;
+
+function randomHex(bytes: number): string {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function readAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Mode demo: berkas kecil disimpan inline, berkas besar hanya metadata (tanpa pratinjau). */
+async function toDemoAttachments(files: File[]): Promise<LeaveAttachment[]> {
+  return Promise.all(
+    files.map(async (file) => ({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      url: file.size <= DEMO_INLINE_LIMIT_BYTES ? await readAsDataURL(file) : '',
+    }))
+  );
+}
+
+function verifyAll(
+  requests: LeaveRequestWithRelations[],
+  ids: string[],
+  verifier: Profile,
+  courseSipen: CourseSipen[]
+) {
+  const idSet = new Set(ids);
+  const allowed = requests.filter(
+    (r) => idSet.has(r.id) && canVerifyRequest(verifier, r, courseSipen)
+  );
+  return { allowedIds: allowed.map((r) => r.id), skipped: idSet.size - allowed.length };
 }
 
 export const useLeaveStore = create<LeaveState>()(
   persist(
-    (set, get) => ({
-      requests: INITIAL_LEAVE_REQUESTS,
-      courses: INITIAL_COURSES,
-      lecturerTokens: INITIAL_LECTURER_TOKENS,
-      statusFilter: 'all',
-      selectedCourseFilter: 'all',
-      searchQuery: '',
-
-      setStatusFilter: (status) => set({ statusFilter: status }),
-      setSelectedCourseFilter: (courseId) => set({ selectedCourseFilter: courseId }),
-      setSearchQuery: (query) => set({ searchQuery: query }),
-
-      submitLeave: async (payload) => {
-        // Validation: end_date must be >= start_date
-        if (new Date(payload.end_date) < new Date(payload.start_date)) {
-          return { success: false, error: 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai perizinan.' };
-        }
-
-        const profiles = useAuthStore.getState().profiles;
-        const student = profiles.find((p) => p.id === payload.student_id);
-        const creator = profiles.find((p) => p.id === payload.created_by);
-        const course = get().courses.find((c) => c.id === payload.course_id);
-
-        if (!student || !creator || !course) {
-          return { success: false, error: 'Data referensi mahasiswa atau mata kuliah tidak valid.' };
-        }
-
-        const newId = `leave-${Date.now()}`;
-        const newRecord: LeaveRequestWithRelations = {
-          id: newId,
-          student_id: payload.student_id,
-          course_id: payload.course_id,
-          leave_type: payload.leave_type,
-          start_date: payload.start_date,
-          end_date: payload.end_date,
-          reason: payload.reason,
-          file_urls: payload.file_urls,
-          status: 'pending',
-          rejection_reason: null,
-          created_by: payload.created_by,
-          verified_by: null,
-          verified_at: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          student,
-          creator,
-          course,
-          verifier: null,
-        };
-
-        set((state) => ({
-          requests: [newRecord, ...state.requests],
-        }));
-
-        return { success: true, data: newRecord };
-      },
-
-      approveLeave: async (requestId, verifier) => {
-        set((state) => ({
-          requests: state.requests.map((req) => {
-            if (req.id === requestId) {
-              return {
-                ...req,
-                status: 'approved',
-                rejection_reason: null,
-                verified_by: verifier.id,
-                verified_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                verifier,
-              };
-            }
-            return req;
-          }),
-        }));
-        return { success: true };
-      },
-
-      rejectLeave: async (requestId, reason, verifier) => {
-        if (!reason.trim()) {
-          return { success: false, error: 'Alasan penolakan wajib diisi untuk transparansi mahasiswa.' };
-        }
-
-        set((state) => ({
-          requests: state.requests.map((req) => {
-            if (req.id === requestId) {
-              return {
-                ...req,
-                status: 'rejected',
-                rejection_reason: reason.trim(),
-                verified_by: verifier.id,
-                verified_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                verifier,
-              };
-            }
-            return req;
-          }),
-        }));
-        return { success: true };
-      },
-
-      batchApproveLeaves: async (requestIds, verifier) => {
-        const idSet = new Set(requestIds);
+    (set, get) => {
+      const applyDecisionLocally = (
+        ids: string[],
+        status: 'approved' | 'rejected',
+        verifier: Profile,
+        rejectionReason: string | null
+      ) => {
+        const idSet = new Set(ids);
         const now = new Date().toISOString();
-        let count = 0;
         set((state) => ({
-          requests: state.requests.map((req) => {
-            if (idSet.has(req.id) && req.status === 'pending') {
-              count++;
-              return {
-                ...req,
-                status: 'approved',
-                rejection_reason: null,
-                verified_by: verifier.id,
-                verified_at: now,
-                updated_at: now,
-                verifier,
-              };
+          requests: state.requests.map((req) =>
+            idSet.has(req.id)
+              ? {
+                  ...req,
+                  status,
+                  rejection_reason: status === 'rejected' ? rejectionReason : null,
+                  verified_by: verifier.id,
+                  verified_at: now,
+                  updated_at: now,
+                  verifier,
+                }
+              : req
+          ),
+        }));
+      };
+
+      const decide = async (
+        ids: string[],
+        status: 'approved' | 'rejected',
+        verifier: Profile,
+        rejectionReason: string | null
+      ): Promise<{ success: boolean; count: number; error?: string }> => {
+        const { allowedIds } = verifyAll(get().requests, ids, verifier, get().courseSipen);
+        if (allowedIds.length === 0) {
+          return {
+            success: false,
+            count: 0,
+            error: 'Anda tidak berwenang memverifikasi pengajuan ini (izin sendiri atau di luar mata kuliah Anda).',
+          };
+        }
+
+        if (isDemoMode()) {
+          applyDecisionLocally(allowedIds, status, verifier, rejectionReason);
+          return { success: true, count: allowedIds.length };
+        }
+
+        try {
+          const updated = await repo.updateLeaveStatus(allowedIds, status, verifier.id, rejectionReason);
+          const byId = new Map(updated.map((r) => [r.id, r]));
+          set((state) => ({ requests: state.requests.map((r) => byId.get(r.id) ?? r) }));
+          return { success: true, count: updated.length };
+        } catch (err) {
+          return { success: false, count: 0, error: errorMessage(err, 'Gagal menyimpan keputusan verifikasi.') };
+        }
+      };
+
+      return {
+        requests: isDemoMode() ? INITIAL_LEAVE_REQUESTS : [],
+        courses: isDemoMode() ? INITIAL_COURSES : [],
+        courseSipen: isDemoMode() ? INITIAL_COURSE_SIPEN : [],
+        lecturerTokens: isDemoMode() ? INITIAL_LECTURER_TOKENS : [],
+        isLoaded: isDemoMode(),
+        loadError: null,
+
+        load: async () => {
+          if (isDemoMode()) {
+            set({ isLoaded: true });
+            return;
+          }
+          try {
+            const user = useAuthStore.getState().user;
+            const [requests, courses, courseSipen, lecturerTokens] = await Promise.all([
+              repo.fetchLeaveRequests(),
+              repo.fetchCourses(),
+              repo.fetchCourseSipen(),
+              user && (user.role === 'km' || user.role === 'sipen')
+                ? repo.fetchLecturerTokens()
+                : Promise.resolve([] as LecturerToken[]),
+            ]);
+            set({ requests, courses, courseSipen, lecturerTokens, isLoaded: true, loadError: null });
+          } catch (err) {
+            set({ isLoaded: true, loadError: errorMessage(err, 'Gagal memuat data perizinan.') });
+          }
+        },
+
+        submitLeave: async (payload) => {
+          if (payload.end_date < payload.start_date) {
+            return { success: false, error: 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai perizinan.' };
+          }
+
+          const actor = useAuthStore.getState().user;
+          if (!actor || actor.id !== payload.created_by) {
+            return { success: false, error: 'Sesi tidak valid, silakan masuk kembali.' };
+          }
+          if (!canSubmitFor(actor, payload.student_id, payload.course_id, get().courseSipen)) {
+            return {
+              success: false,
+              error: 'Anda hanya dapat mengajukan izin proxy untuk mata kuliah yang Anda kelola.',
+            };
+          }
+
+          if (!isDemoMode()) {
+            const uploaded: LeaveAttachment[] = [];
+            try {
+              for (const file of payload.files) {
+                uploaded.push(await repo.uploadAttachment(actor.id, file));
+              }
+              const record = await repo.insertLeaveRequest({
+                student_id: payload.student_id,
+                course_id: payload.course_id,
+                leave_type: payload.leave_type,
+                start_date: payload.start_date,
+                end_date: payload.end_date,
+                reason: payload.reason,
+                file_urls: uploaded,
+                created_by: payload.created_by,
+              });
+              set((state) => ({ requests: [record, ...state.requests] }));
+              return { success: true, data: record };
+            } catch (err) {
+              await repo.removeAttachments(uploaded.map((u) => u.path!).filter(Boolean)).catch(() => {});
+              return { success: false, error: errorMessage(err, 'Terjadi kesalahan saat mengirim pengajuan.') };
             }
-            return req;
-          }),
-        }));
-        return { success: true, count };
-      },
+          }
 
-      batchRejectLeaves: async (requestIds, reason, verifier) => {
-        const idSet = new Set(requestIds);
-        const now = new Date().toISOString();
-        const trimmedReason = reason.trim() || 'Ditolak secara massal oleh verifikator.';
-        let count = 0;
-        set((state) => ({
-          requests: state.requests.map((req) => {
-            if (idSet.has(req.id) && req.status === 'pending') {
-              count++;
-              return {
-                ...req,
-                status: 'rejected',
-                rejection_reason: trimmedReason,
-                verified_by: verifier.id,
-                verified_at: now,
-                updated_at: now,
-                verifier,
-              };
+          const profiles = useAuthStore.getState().profiles;
+          const student = profiles.find((p) => p.id === payload.student_id);
+          const course = get().courses.find((c) => c.id === payload.course_id);
+          if (!student || !course) {
+            return { success: false, error: 'Data referensi mahasiswa atau mata kuliah tidak valid.' };
+          }
+
+          const now = new Date().toISOString();
+          const newRecord: LeaveRequestWithRelations = {
+            id: `leave-${Date.now()}`,
+            student_id: payload.student_id,
+            course_id: payload.course_id,
+            leave_type: payload.leave_type,
+            start_date: payload.start_date,
+            end_date: payload.end_date,
+            reason: payload.reason,
+            file_urls: await toDemoAttachments(payload.files),
+            status: 'pending',
+            rejection_reason: null,
+            created_by: payload.created_by,
+            verified_by: null,
+            verified_at: null,
+            created_at: now,
+            updated_at: now,
+            student,
+            creator: actor,
+            course,
+            verifier: null,
+          };
+
+          set((state) => ({ requests: [newRecord, ...state.requests] }));
+          return { success: true, data: newRecord };
+        },
+
+        approveLeave: async (requestId, verifier) => {
+          const res = await decide([requestId], 'approved', verifier, null);
+          return { success: res.success, error: res.error };
+        },
+
+        rejectLeave: async (requestId, reason, verifier) => {
+          if (!reason.trim()) {
+            return { success: false, error: 'Alasan penolakan wajib diisi untuk transparansi mahasiswa.' };
+          }
+          const res = await decide([requestId], 'rejected', verifier, reason.trim());
+          return { success: res.success, error: res.error };
+        },
+
+        batchApproveLeaves: (requestIds, verifier) => decide(requestIds, 'approved', verifier, null),
+
+        batchRejectLeaves: (requestIds, reason, verifier) =>
+          decide(requestIds, 'rejected', verifier, reason.trim() || 'Ditolak secara massal oleh verifikator.'),
+
+        resolveAttachments: async (files) => {
+          if (isDemoMode()) return files;
+          return repo.signAttachments(files);
+        },
+
+        generateLecturerToken: async (courseId, label, creator) => {
+          if (!canManageTokens(creator)) {
+            return { success: false, error: 'Hanya Ketua Kelas yang dapat membuat tautan akses dosen.' };
+          }
+
+          const expiry = new Date();
+          expiry.setDate(expiry.getDate() + TOKEN_VALIDITY_DAYS);
+          const cleanLabel = label.trim() || 'Link Akses Rekap Dosen';
+
+          if (!isDemoMode()) {
+            try {
+              const token = await repo.insertLecturerToken({
+                course_id: courseId,
+                label: cleanLabel,
+                expires_at: expiry.toISOString(),
+                created_by: creator.id,
+              });
+              set((state) => ({ lecturerTokens: [token, ...state.lecturerTokens] }));
+              return { success: true, data: token };
+            } catch (err) {
+              return { success: false, error: errorMessage(err, 'Gagal membuat tautan akses dosen.') };
             }
-            return req;
-          }),
-        }));
-        return { success: true, count };
-      },
+          }
 
-      generateLecturerToken: (courseId, label, creatorId) => {
-        const randomHex = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
-        const course = courseId ? get().courses.find((c) => c.id === courseId) || null : null;
-        
-        const expiry = new Date();
-        expiry.setDate(expiry.getDate() + 180);
+          const course = courseId ? get().courses.find((c) => c.id === courseId) || null : null;
+          const newToken: LecturerToken = {
+            id: `token-${Date.now()}`,
+            token: randomHex(24),
+            course_id: courseId,
+            label: cleanLabel,
+            expires_at: expiry.toISOString(),
+            created_by: creator.id,
+            created_at: new Date().toISOString(),
+            revoked_at: null,
+            course,
+          };
 
-        const newToken: LecturerToken = {
-          id: `token-${Date.now()}`,
-          token: `guest-${randomHex}`,
-          course_id: courseId,
-          label: label.trim() || 'Link Akses Rekap Dosen',
-          expires_at: expiry.toISOString(),
-          created_by: creatorId,
-          created_at: new Date().toISOString(),
-          course,
-        };
+          set((state) => ({ lecturerTokens: [newToken, ...state.lecturerTokens] }));
+          return { success: true, data: newToken };
+        },
 
-        set((state) => ({
-          lecturerTokens: [newToken, ...state.lecturerTokens],
-        }));
+        deleteLecturerToken: async (tokenId, actor) => {
+          if (!canManageTokens(actor)) {
+            return { success: false, error: 'Hanya Ketua Kelas yang dapat mencabut tautan akses dosen.' };
+          }
+          if (!isDemoMode()) {
+            try {
+              await repo.revokeLecturerToken(tokenId);
+            } catch (err) {
+              return { success: false, error: errorMessage(err, 'Gagal mencabut tautan.') };
+            }
+          }
+          set((state) => ({
+            lecturerTokens: state.lecturerTokens.filter((t) => t.id !== tokenId),
+          }));
+          return { success: true };
+        },
 
-        return newToken;
-      },
-
-      deleteLecturerToken: (tokenId) => {
-        set((state) => ({
-          lecturerTokens: state.lecturerTokens.filter((t) => t.id !== tokenId),
-        }));
-      },
-
-      resetToInitial: () => {
-        set({
-          requests: INITIAL_LEAVE_REQUESTS,
-          courses: INITIAL_COURSES,
-          lecturerTokens: INITIAL_LECTURER_TOKENS,
-        });
-      },
-    }),
+        resetToInitial: () => {
+          if (!isDemoMode()) return;
+          set({
+            requests: INITIAL_LEAVE_REQUESTS,
+            courses: INITIAL_COURSES,
+            courseSipen: INITIAL_COURSE_SIPEN,
+            lecturerTokens: INITIAL_LECTURER_TOKENS,
+          });
+        },
+      };
+    },
     {
       name: 'sipper-ti-leave-store',
-      partialize: (state) => ({
-        requests: state.requests,
-        lecturerTokens: state.lecturerTokens,
-      }),
+      version: 2,
+      // Mode live: data selalu dari Supabase, tidak disimpan di browser.
+      partialize: (state) =>
+        isDemoMode() ? { requests: state.requests, lecturerTokens: state.lecturerTokens } : {},
+      // Versi 1 menyimpan blob: URL yang rusak & lampiran palsu — reset ke data awal.
+      migrate: () => ({}),
     }
   )
 );

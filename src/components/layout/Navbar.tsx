@@ -3,36 +3,36 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuthStore, isDemoMode } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import { UserRole } from '@/types/database';
 import { ThemeToggle } from './ThemeToggle';
+import { useHydrated } from '@/lib/useHydrated';
+import { canVerifyRequest, isSupervisor } from '@/lib/permissions';
 import {
   GraduationCap,
   LogOut,
   ChevronDown,
   Sparkles,
   Check,
-  Home,
-  PlusCircle,
-  CheckSquare,
   KeyRound,
   X,
-  User as UserIcon,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, switchRole, logout, profiles, switchUser } = useAuthStore();
-  const { requests } = useLeaveStore();
+  const { requests, courseSipen } = useLeaveStore();
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const hydrated = useHydrated();
+  const demo = isDemoMode();
 
-  const pendingCount = requests.filter((r) => r.status === 'pending').length;
+  const pendingCount = requests.filter((r) => canVerifyRequest(user, r, courseSipen)).length;
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     toast.info('Anda telah keluar.');
     router.push('/login');
   };
@@ -78,7 +78,7 @@ export const Navbar: React.FC = () => {
         {/* ========================================================================= */}
         {/* DESKTOP EXCLUSIVE: Full App Bar Navigation Links (Hidden on Mobile)       */}
         {/* ========================================================================= */}
-        {isAuthenticated && user && (
+        {hydrated && isAuthenticated && user && (
           <nav className="hidden md:flex items-center gap-1 bg-slate-100/80 dark:bg-white/[0.04] p-1 rounded-xl border border-slate-200/80 dark:border-white/5 text-xs">
             <Link
               href="/"
@@ -100,7 +100,7 @@ export const Navbar: React.FC = () => {
             >
               Ajukan Izin
             </Link>
-            {(user.role === 'sipen' || user.role === 'km') && (
+            {isSupervisor(user) && (
               <Link
                 href="/approval"
                 className={`relative px-3.5 py-1.5 rounded-lg font-medium transition-all ${
@@ -117,16 +117,18 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
             )}
-            <Link
-              href="/admin/tokens"
-              className={`px-3.5 py-1.5 rounded-lg font-medium transition-all ${
-                pathname === '/admin/tokens'
-                  ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Link Dosen
-            </Link>
+            {isSupervisor(user) && (
+              <Link
+                href="/admin/tokens"
+                className={`px-3.5 py-1.5 rounded-lg font-medium transition-all ${
+                  pathname === '/admin/tokens'
+                    ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                Link Dosen
+              </Link>
+            )}
           </nav>
         )}
 
@@ -136,7 +138,9 @@ export const Navbar: React.FC = () => {
           <ThemeToggle />
 
           {/* User Account & Role Switcher */}
-          {isAuthenticated && user ? (
+          {!hydrated ? (
+            <div className="w-20 h-8 rounded-xl bg-slate-200/50 dark:bg-white/5 animate-pulse" />
+          ) : isAuthenticated && user ? (
             <div className="relative flex items-center">
               <button
                 onClick={() => setIsAccountOpen(!isAccountOpen)}
@@ -179,7 +183,8 @@ export const Navbar: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Role Switcher */}
+                    {/* Role Switcher (mode demo saja) */}
+                    {demo && (
                     <div className="space-y-1.5">
                       <span className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                         <Sparkles className="w-3 h-3 text-amber-500 dark:text-amber-400" /> Beralih Peran:
@@ -205,7 +210,10 @@ export const Navbar: React.FC = () => {
                       </div>
                     </div>
 
+                    )}
+
                     {/* Demo Profile Switcher */}
+                    {demo && (
                     <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
                       <span className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
                         Profil Demo Cepat:
@@ -232,12 +240,25 @@ export const Navbar: React.FC = () => {
                       </div>
                     </div>
 
+                    )}
+
+                    {user.email.endsWith('@local.sipper-ti') || demo ? (
+                      <Link
+                        href="/settings/password"
+                        onClick={() => setIsAccountOpen(false)}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Ganti Kata Sandi</span>
+                      </Link>
+                    ) : null}
+
                     {/* Logout */}
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
                       <button
                         onClick={() => {
                           setIsAccountOpen(false);
-                          handleLogout();
+                          void handleLogout();
                         }}
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
                       >

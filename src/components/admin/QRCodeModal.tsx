@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { QrCode, X, Copy, Check, Download, Printer, ExternalLink } from 'lucide-react';
+import { QrCode, X, Copy, Check, Download, ExternalLink } from 'lucide-react';
 import { toast } from '@/store/useToastStore';
 
 interface QRCodeModalProps {
@@ -69,10 +69,6 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
     toast.success('QR Code berhasil diunduh!');
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
       <div className="doppelrand-shell max-w-md w-full">
@@ -90,6 +86,11 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">
                   {title}
+                  {courseName && (
+                    <span className="block text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+                      {courseName}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>

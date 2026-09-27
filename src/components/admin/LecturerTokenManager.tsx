@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import { QRCodeModal } from './QRCodeModal';
+import { canManageTokens, getTokenState } from '@/lib/permissions';
 import {
   KeyRound,
   Plus,
@@ -14,7 +15,6 @@ import {
   Trash2,
   Clock,
   Sparkles,
-  Share2,
   MessageCircle,
   QrCode,
 } from 'lucide-react';
@@ -33,12 +33,21 @@ export const LecturerTokenManager: React.FC = () => {
     courseName?: string;
   } | null>(null);
 
-  const handleCreateToken = (e: React.FormEvent) => {
+  const canManage = canManageTokens(user);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreateToken = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !canManage) return;
 
     const courseId = selectedCourseId === 'all' ? null : selectedCourseId;
-    const newToken = generateLecturerToken(courseId, tokenLabel, user.id);
+    setIsCreating(true);
+    const res = await generateLecturerToken(courseId, tokenLabel, user);
+    setIsCreating(false);
+    if (!res.success) {
+      toast.error(res.error || 'Gagal membuat tautan akses dosen.');
+      return;
+    }
 
     setTokenLabel('');
     setIsSuccess(true);
@@ -46,10 +55,15 @@ export const LecturerTokenManager: React.FC = () => {
     setTimeout(() => setIsSuccess(false), 2500);
   };
 
-  const copyTokenUrl = (token: string, id: string) => {
+  const copyTokenUrl = async (token: string, id: string) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const fullUrl = `${origin}/lecturer/${token}`;
-    navigator.clipboard.writeText(fullUrl);
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+    } catch {
+      toast.error('Gagal menyalin tautan. Salin manual dari tombol "Buka".');
+      return;
+    }
     setCopiedId(id);
     toast.success('Tautan berhasil disalin ke clipboard!');
     setTimeout(() => setCopiedId(null), 2000);
@@ -64,9 +78,17 @@ export const LecturerTokenManager: React.FC = () => {
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
-  const handleDeleteToken = (id: string) => {
-    deleteLecturerToken(id);
-    toast.info('Tautan akses dosen telah dihapus.');
+  const handleDeleteToken = async (id: string, label: string) => {
+    if (!user) return;
+    if (!window.confirm(`Cabut tautan "${label}"? Dosen tidak akan bisa membuka rekap lagi melalui tautan ini.`)) {
+      return;
+    }
+    const res = await deleteLecturerToken(id, user);
+    if (res.success) {
+      toast.info('Tautan akses dosen telah dicabut.');
+    } else {
+      toast.error(res.error || 'Gagal mencabut tautan.');
+    }
   };
 
   const openQrModal = (token: string, label: string, courseName?: string) => {
@@ -101,12 +123,13 @@ export const LecturerTokenManager: React.FC = () => {
           </div>
 
           <span className="px-3 py-1 rounded-xl text-xs font-mono font-semibold uppercase tracking-wider bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/25 shrink-0">
-            Khusus KM & Sipen
+            {canManage ? 'Pengelola: KM' : 'Mode Lihat (Sipen)'}
           </span>
         </div>
       </div>
 
-      {/* Generator Card */}
+      {/* Generator Card (khusus KM) */}
+      {canManage && (
       <div className="doppelrand-shell">
         <form onSubmit={handleCreateToken} className="doppelrand-core p-5 sm:p-6 space-y-4">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-200/80 dark:border-white/5 pb-3">
@@ -156,13 +179,15 @@ export const LecturerTokenManager: React.FC = () => {
           <div className="flex justify-end pt-2">
             <button
               type="submit"
-              className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-purple-900/20 transition flex items-center gap-2 active:scale-95"
+              disabled={isCreating}
+              className="disabled:opacity-50 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-purple-900/20 transition flex items-center gap-2 active:scale-95"
             >
               <Sparkles className="w-4 h-4" /> Generate Tautan Publik
             </button>
           </div>
         </form>
       </div>
+      )}
 
       {/* Active Tokens List */}
       <div className="space-y-3">
@@ -189,9 +214,20 @@ export const LecturerTokenManager: React.FC = () => {
                   <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                     {token.course ? token.course.name : 'Supervisi Koordinator Kelas Internasional'}
                   </p>
-                  <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-1">
+                  <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-1">
                     <Clock className="w-3 h-3" />
-                    <span>Token: {token.token}</span>
+                    <span>Token: {token.token.slice(0, 8)}…</span>
+                    <span>
+                      • Berlaku s.d.{' '}
+                      {token.expires_at
+                        ? new Date(token.expires_at).toLocaleDateString('id-ID', { dateStyle: 'medium' })
+                        : 'tanpa batas'}
+                    </span>
+                    {getTokenState(token) !== 'active' && (
+                      <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 uppercase">
+                        Kedaluwarsa
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -207,7 +243,7 @@ export const LecturerTokenManager: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => copyTokenUrl(token.token, token.id)}
+                    onClick={() => void copyTokenUrl(token.token, token.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition flex items-center gap-1.5 active:scale-95 ${
                       copiedId === token.id
                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
@@ -245,13 +281,16 @@ export const LecturerTokenManager: React.FC = () => {
                     <ExternalLink className="w-3.5 h-3.5" /> Buka
                   </a>
 
-                  <button
-                    onClick={() => handleDeleteToken(token.id)}
-                    className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition"
-                    title="Hapus token"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canManage && (
+                    <button
+                      onClick={() => void handleDeleteToken(token.id, token.label)}
+                      className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition"
+                      title="Cabut tautan"
+                      aria-label={`Cabut tautan ${token.label}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

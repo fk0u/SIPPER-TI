@@ -1,4 +1,4 @@
-import { Profile, Course, LeaveRequestWithRelations, LecturerToken } from '@/types/database';
+import { Profile, Course, CourseSipen, LeaveRequestWithRelations, LecturerToken } from '@/types/database';
 
 export const INITIAL_COURSES: Course[] = [
   {
@@ -161,6 +161,34 @@ export const INITIAL_PROFILES: Profile[] = [
     is_password_changed: false,
     created_at: '2026-09-01T08:00:00Z',
     updated_at: '2026-09-01T08:00:00Z',
+  },
+];
+
+// Selaras dengan supabase/seed.sql bagian 3 (course_sipen)
+export const INITIAL_COURSE_SIPEN: CourseSipen[] = [
+  {
+    id: 's1111111-1111-1111-1111-111111111111',
+    user_id: 'a0000000-0000-0000-0000-000000000002', // Sarah -> Cloud Architecture
+    course_id: 'c1111111-1111-1111-1111-111111111111',
+    created_at: '2026-09-01T08:00:00Z',
+  },
+  {
+    id: 's2222222-2222-2222-2222-222222222222',
+    user_id: 'a0000000-0000-0000-0000-000000000002', // Sarah -> SQA
+    course_id: 'c4444444-4444-4444-4444-444444444444',
+    created_at: '2026-09-01T08:00:00Z',
+  },
+  {
+    id: 's3333333-3333-3333-3333-333333333333',
+    user_id: 'a0000000-0000-0000-0000-000000000005', // Kevin -> Machine Learning
+    course_id: 'c2222222-2222-2222-2222-222222222222',
+    created_at: '2026-09-01T08:00:00Z',
+  },
+  {
+    id: 's4444444-4444-4444-4444-444444444444',
+    user_id: 'a0000000-0000-0000-0000-000000000005', // Kevin -> Mobile
+    course_id: 'c3333333-3333-3333-3333-333333333333',
+    created_at: '2026-09-01T08:00:00Z',
   },
 ];
 

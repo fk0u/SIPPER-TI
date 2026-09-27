@@ -4,6 +4,7 @@ import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { ToastContainer } from '@/components/ui/ToastContainer';
+import { AuthBootstrap } from '@/components/auth/AuthBootstrap';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -38,6 +39,9 @@ export const viewport: Viewport = {
   ],
 };
 
+// Terapkan tema tersimpan sebelum paint pertama untuk mencegah kedipan tema.
+const THEME_INIT_SCRIPT = `(function(){try{var s=JSON.parse(localStorage.getItem('sipper-ti-theme-store')||'{}');var t=(s.state&&s.state.theme)||'dark';var c=document.documentElement.classList;c.toggle('dark',t==='dark');c.toggle('light',t!=='dark');}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,9 +53,13 @@ export default function RootLayout({
       className={`dark scroll-smooth ${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-[100dvh] bg-[#f8fafc] dark:bg-[#06090e] text-[#090d16] dark:text-[#f8fafc] flex flex-col font-sans bg-grid-ambient selection:bg-blue-600/20 selection:text-blue-600 dark:selection:bg-blue-500/30 dark:selection:text-blue-300 pb-28 sm:pb-20 antialiased transition-colors duration-200">
         {/* Global Toast Notifications */}
         <ToastContainer />
+        <AuthBootstrap />
 
         {/* Floating Island Navigation */}
         <Navbar />

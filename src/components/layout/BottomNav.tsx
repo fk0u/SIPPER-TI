@@ -6,19 +6,22 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { Home, PlusCircle, CheckSquare, KeyRound } from 'lucide-react';
+import { useHydrated } from '@/lib/useHydrated';
+import { canVerifyRequest, isSupervisor } from '@/lib/permissions';
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
   const { user, isAuthenticated } = useAuthStore();
-  const { requests } = useLeaveStore();
+  const { requests, courseSipen } = useLeaveStore();
+  const hydrated = useHydrated();
 
-  if (!isAuthenticated || !user) return null;
+  if (!hydrated || !isAuthenticated || !user) return null;
 
   // Don't show bottom nav on guest lecturer view
   if (pathname.startsWith('/lecturer/')) return null;
 
-  const pendingCount = requests.filter((r) => r.status === 'pending').length;
-  const isSupervisor = user.role === 'km' || user.role === 'sipen';
+  const pendingCount = requests.filter((r) => canVerifyRequest(user, r, courseSipen)).length;
+  const supervisor = isSupervisor(user);
 
   const navItems = [
     {
@@ -33,19 +36,23 @@ export const BottomNav: React.FC = () => {
       icon: PlusCircle,
       isActive: pathname === '/leave/new',
     },
-    {
-      label: 'Approval',
-      href: '/approval',
-      icon: CheckSquare,
-      badge: isSupervisor && pendingCount > 0 ? pendingCount : null,
-      isActive: pathname === '/approval',
-    },
-    {
-      label: 'Link Dosen',
-      href: '/admin/tokens',
-      icon: KeyRound,
-      isActive: pathname === '/admin/tokens',
-    },
+    ...(supervisor
+      ? [
+          {
+            label: 'Approval',
+            href: '/approval',
+            icon: CheckSquare,
+            badge: pendingCount > 0 ? pendingCount : null,
+            isActive: pathname === '/approval',
+          },
+          {
+            label: 'Link Dosen',
+            href: '/admin/tokens',
+            icon: KeyRound,
+            isActive: pathname === '/admin/tokens',
+          },
+        ]
+      : []),
   ];
 
   return (

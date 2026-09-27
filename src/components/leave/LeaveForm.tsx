@@ -8,7 +8,7 @@ import { toast } from '@/store/useToastStore';
 import { LeaveType } from '@/types/database';
 import { diffDaysInclusive, todayLocalISO } from '@/lib/date';
 import { formatFileSize, validateAttachmentFiles } from '@/lib/attachments';
-import { canUseProxy as canUseProxyFor, isSipenOf } from '@/lib/permissions';
+import { isSipenOf, isSupervisor } from '@/lib/permissions';
 import { LEAVE_TYPES, LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import {
   UploadCloud,
@@ -44,7 +44,7 @@ export const LeaveForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const canUseProxy = canUseProxyFor(user);
+  const canUseProxy = isSupervisor(user);
   const availableStudents = profiles.filter((p) => p.id !== user?.id);
   // Sipen hanya boleh mengajukan proxy untuk mata kuliah yang dikelolanya
   const proxyCourses =

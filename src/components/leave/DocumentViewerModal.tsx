@@ -203,5 +203,3 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     </div>
   );
 };
-
-export default DocumentViewerModal;

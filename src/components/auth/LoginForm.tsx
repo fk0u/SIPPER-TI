@@ -279,5 +279,3 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
     </div>
   );
 };
-
-export default LoginForm;

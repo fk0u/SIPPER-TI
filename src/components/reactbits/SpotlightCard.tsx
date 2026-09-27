@@ -24,19 +24,14 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
     setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
-  const handleFocus = () => setOpacity(1);
-  const handleBlur = () => setOpacity(0);
-  const handleMouseEnter = () => setOpacity(1);
-  const handleMouseLeave = () => setOpacity(0);
-
   return (
     <div
       ref={divRef}
       onMouseMove={handleMouseMove}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onFocus={() => setOpacity(1)}
+      onBlur={() => setOpacity(0)}
+      onMouseEnter={() => setOpacity(1)}
+      onMouseLeave={() => setOpacity(0)}
       className={`relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-[#0b0f19]/85 backdrop-blur-2xl shadow-sm dark:shadow-2xl transition-all duration-300 ${className}`}
       {...props}
     >
@@ -59,4 +54,3 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
   );
 };
 
-export default SpotlightCard;

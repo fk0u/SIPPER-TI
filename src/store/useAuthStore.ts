@@ -8,6 +8,7 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { nimToEmail } from '@/lib/supabase/config';
 import * as repo from '@/lib/data/supabaseRepository';
 import { safeNextPath } from '@/lib/redirect';
+import { errorMessage } from '@/lib/errors';
 
 type Result = { success: boolean; error?: string };
 
@@ -50,9 +51,6 @@ async function sha256(text: string): Promise<string> {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
-
-const errorMessage = (err: unknown, fallback: string) =>
-  err instanceof Error && err.message ? err.message : fallback;
 
 let authListenerAttached = false;
 /** Nomor urut pemuatan sesi: hasil yang lebih lama dibuang agar tidak menimpa sesi terbaru. */

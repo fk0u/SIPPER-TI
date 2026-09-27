@@ -93,5 +93,3 @@ export const BottomNav: React.FC = () => {
     </div>
   );
 };
-
-export default BottomNav;

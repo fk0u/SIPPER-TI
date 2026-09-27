@@ -5,6 +5,23 @@ import { randomUUID } from 'node:crypto';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:3100';
+
+// Tunggu server siap (maks. 120 detik) agar tidak butuh alat tambahan seperti wait-on.
+async function waitForServer(url, timeoutMs = 120_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return;
+    } catch {
+      // server belum menerima koneksi
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  console.error(`Server tidak siap dalam ${timeoutMs / 1000} detik: ${url}`);
+  process.exit(1);
+}
+await waitForServer(`${BASE}/login`);
 const results = [];
 const check = (name, ok, extra='') => { results.push(`${ok ? 'PASS' : 'FAIL'} ${name} ${extra}`); };
 

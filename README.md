@@ -129,8 +129,7 @@ npm run test:rls     # uji RLS di PostgreSQL (butuh PGHOST/PGUSER)
 npx playwright install chromium
 npm run build
 PORT=3100 npm run start & SERVER_PID=$!
-npx wait-on --timeout 120000 http://localhost:3100/login
-E2E_BASE_URL=http://localhost:3100 npm run test:e2e
+E2E_BASE_URL=http://localhost:3100 npm run test:e2e   # menunggu server siap (maks. 120 dtk)
 kill $SERVER_PID
 npm run build
 ```

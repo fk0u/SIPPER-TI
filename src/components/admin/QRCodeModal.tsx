@@ -87,7 +87,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">
                   {title}
                   {courseName && (
-                    <span className="block text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+                    <span className="block truncate text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
                       {courseName}
                     </span>
                   )}

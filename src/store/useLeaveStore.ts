@@ -58,8 +58,13 @@ interface LeaveState {
 }
 
 const TOKEN_VALIDITY_DAYS = 180;
-/** Batas ukuran berkas yang disimpan sebagai data URL pada mode demo (localStorage terbatas ±5MB). */
-const DEMO_INLINE_LIMIT_BYTES = 750 * 1024;
+/**
+ * Mode demo menyimpan lampiran kecil sebagai data URL di localStorage (kuota ±5MB).
+ * Batas per pengajuan (bukan per berkas) agar unggahan multi-berkas tidak melampaui kuota.
+ */
+const DEMO_INLINE_BUDGET_BYTES = 750 * 1024;
+/** Nomor urut pemuatan data live: respons lama dibuang. */
+let loadGeneration = 0;
 
 const errorMessage = (err: unknown, fallback: string) =>
   err instanceof Error && err.message ? err.message : fallback;
@@ -79,16 +84,23 @@ function readAsDataURL(file: File): Promise<string> {
   });
 }
 
-/** Mode demo: berkas kecil disimpan inline, berkas besar hanya metadata (tanpa pratinjau). */
+/** Mode demo: berkas disimpan inline selama anggaran cukup, sisanya hanya metadata (tanpa pratinjau). */
 async function toDemoAttachments(files: File[]): Promise<LeaveAttachment[]> {
-  return Promise.all(
-    files.map(async (file) => ({
+  let budget = DEMO_INLINE_BUDGET_BYTES;
+  const result: LeaveAttachment[] = [];
+  for (const file of files) {
+    // Data URL base64 ±4/3 ukuran asli
+    const encodedSize = Math.ceil(file.size * 4 / 3);
+    const inline = encodedSize <= budget;
+    if (inline) budget -= encodedSize;
+    result.push({
       name: file.name,
       type: file.type,
       size: file.size,
-      url: file.size <= DEMO_INLINE_LIMIT_BYTES ? await readAsDataURL(file) : '',
-    }))
-  );
+      url: inline ? await readAsDataURL(file) : '',
+    });
+  }
+  return result;
 }
 
 function verifyAll(
@@ -175,6 +187,9 @@ export const useLeaveStore = create<LeaveState>()(
             set({ isLoaded: true });
             return;
           }
+          // Kosongkan data pengguna sebelumnya agar tidak tampil saat berganti akun / gagal muat.
+          set({ requests: [], courses: [], courseSipen: [], lecturerTokens: [], isLoaded: false, loadError: null });
+          const generation = ++loadGeneration;
           try {
             const user = useAuthStore.getState().user;
             const [requests, courses, courseSipen, lecturerTokens] = await Promise.all([
@@ -185,8 +200,10 @@ export const useLeaveStore = create<LeaveState>()(
                 ? repo.fetchLecturerTokens()
                 : Promise.resolve([] as LecturerToken[]),
             ]);
+            if (generation !== loadGeneration) return; // pengguna sudah berganti
             set({ requests, courses, courseSipen, lecturerTokens, isLoaded: true, loadError: null });
           } catch (err) {
+            if (generation !== loadGeneration) return;
             set({ isLoaded: true, loadError: errorMessage(err, 'Gagal memuat data perizinan.') });
           }
         },
@@ -340,8 +357,11 @@ export const useLeaveStore = create<LeaveState>()(
               return { success: false, error: errorMessage(err, 'Gagal mencabut tautan.') };
             }
           }
+          // Token dicabut, bukan dihapus: tautan lama menampilkan status "dicabut".
           set((state) => ({
-            lecturerTokens: state.lecturerTokens.filter((t) => t.id !== tokenId),
+            lecturerTokens: isDemoMode()
+              ? state.lecturerTokens.map((t) => (t.id === tokenId ? { ...t, revoked_at: new Date().toISOString() } : t))
+              : state.lecturerTokens.filter((t) => t.id !== tokenId),
           }));
           return { success: true };
         },

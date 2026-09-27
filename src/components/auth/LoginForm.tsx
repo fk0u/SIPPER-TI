@@ -49,7 +49,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
   const handleGoogleLogin = async () => {
     setLocalError(null);
     clearError();
-    const res = await loginWithGoogle();
+    const res = await loginWithGoogle(nextPath);
     if (res.success) {
       // Mode live: browser dialihkan ke Google; mode demo: langsung masuk
       if (demo) {

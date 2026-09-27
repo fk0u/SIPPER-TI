@@ -36,12 +36,19 @@ const DEMO_ROSTER = [
   ['a0000000-0000-0000-0000-000000000010', '2311102441110', 'Zahra Salsabila', 'mahasiswa'],
 ].map(([id, nim, full_name, role]) => ({ id, nim, full_name, role }));
 
+const ROLES = new Set(['mahasiswa', 'sipen', 'km']);
+
+// CSV sederhana: tanpa tanda kutip / koma di dalam nilai. Baris yang tidak sesuai ditolak,
+// bukan diparse diam-diam dengan kolom bergeser.
 function readRoster(path) {
   const [header, ...lines] = readFileSync(path, 'utf8').trim().split(/\r?\n/);
   const cols = header.split(',').map((c) => c.trim());
-  return lines.filter(Boolean).map((line) => {
+  return lines.filter(Boolean).map((line, i) => {
     const values = line.split(',').map((v) => v.trim());
-    return Object.fromEntries(cols.map((c, i) => [c, values[i] || undefined]));
+    if (line.includes('"') || values.length !== cols.length) {
+      throw new Error(`Baris ${i + 2} tidak valid (gunakan ${cols.length} kolom tanpa tanda kutip/koma di dalam nilai): ${line}`);
+    }
+    return Object.fromEntries(cols.map((c, j) => [c, values[j] || undefined]));
   });
 }
 
@@ -49,35 +56,41 @@ const roster = process.argv[2] ? readRoster(process.argv[2]) : DEMO_ROSTER;
 const supabase = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
 let created = 0;
-let skipped = 0;
+let existing = 0;
+let failed = 0;
 for (const { id, nim, full_name, role = 'mahasiswa' } of roster) {
-  if (!nim || !full_name) {
-    console.warn('Lewati baris tanpa nim/full_name:', { id, nim, full_name });
+  if (!nim || !full_name || !/^[0-9]{8,20}$/.test(nim) || !ROLES.has(role)) {
+    console.error('Baris tidak valid (nim numerik, full_name, role mahasiswa|sipen|km):', { id, nim, full_name, role });
+    failed++;
     continue;
   }
-  const { data, error } = await supabase.auth.admin.createUser({
+  const { error } = await supabase.auth.admin.createUser({
     ...(id ? { id } : {}),
     email: `${nim}@umkt.ac.id`,
     password: nim,
     email_confirm: true,
-    user_metadata: { nim, full_name },
+    user_metadata: { full_name },
   });
 
-  if (error) {
-    if (/already|registered|exists/i.test(error.message)) {
-      skipped++;
-      continue;
-    }
+  if (error && !/already|registered|exists/i.test(error.message)) {
     console.error(`Gagal membuat ${nim}: ${error.message}`);
-    process.exitCode = 1;
+    failed++;
     continue;
   }
+  if (error) existing++;
+  else created++;
 
-  if (role !== 'mahasiswa') {
-    const { error: roleError } = await supabase.from('profiles').update({ role }).eq('id', data.user.id);
-    if (roleError) console.error(`Gagal set role ${role} untuk ${nim}: ${roleError.message}`);
+  // Selalu sinkronkan role dari roster — juga untuk akun yang sudah ada (roster berubah / percobaan sebelumnya gagal).
+  const { data: updated, error: roleError } = await supabase
+    .from('profiles')
+    .update({ role, full_name })
+    .eq('nim', nim)
+    .select('id');
+  if (roleError || !updated?.length) {
+    console.error(`Gagal set role ${role} untuk ${nim}: ${roleError?.message ?? 'profil tidak ditemukan'}`);
+    failed++;
   }
-  created++;
 }
 
-console.log(`Selesai: ${created} akun dibuat, ${skipped} sudah ada.`);
+console.log(`Selesai: ${created} akun dibuat, ${existing} sudah ada, ${failed} gagal.`);
+if (failed > 0) process.exitCode = 1;

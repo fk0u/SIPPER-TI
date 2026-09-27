@@ -2,17 +2,19 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Profile, UserRole } from '@/types/database';
+import { Profile, ProfileSummary, UserRole } from '@/types/database';
 import { INITIAL_PROFILES } from '@/lib/mockData';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { nimToEmail } from '@/lib/supabase/config';
 import * as repo from '@/lib/data/supabaseRepository';
+import { safeNextPath } from '@/lib/redirect';
 
 type Result = { success: boolean; error?: string };
 
 interface AuthState {
   user: Profile | null;
-  profiles: Profile[];
+  /** Direktori kelas (kolom publik saja) untuk pilihan mahasiswa pada mode proxy. */
+  profiles: ProfileSummary[];
   isAuthenticated: boolean;
   isLoading: boolean;
   /** `true` setelah sesi awal selesai dimuat (mode live) atau langsung (mode demo). */
@@ -26,8 +28,9 @@ interface AuthState {
   demoPasswordHashes: Record<string, string>;
 
   // Actions
-  initialize: () => Promise<void>;
-  loginWithGoogle: () => Promise<Result>;
+  /** Memuat sesi; `true` bila berhasil (termasuk tanpa sesi), `false` bila gagal. */
+  initialize: () => Promise<boolean>;
+  loginWithGoogle: (nextPath?: string) => Promise<Result>;
   loginWithNIM: (nim: string, password: string) => Promise<Result>;
   changePassword: (newPassword: string) => Promise<Result>;
   /** Hanya tersedia pada mode demo. */
@@ -52,6 +55,8 @@ const errorMessage = (err: unknown, fallback: string) =>
   err instanceof Error && err.message ? err.message : fallback;
 
 let authListenerAttached = false;
+/** Nomor urut pemuatan sesi: hasil yang lebih lama dibuang agar tidak menimpa sesi terbaru. */
+let sessionGeneration = 0;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -69,13 +74,15 @@ export const useAuthStore = create<AuthState>()(
       initialize: async () => {
         if (isDemoMode()) {
           set({ isReady: true });
-          return;
+          return true;
         }
 
-        const loadSession = async () => {
+        const loadSession = async (): Promise<boolean> => {
+          const generation = ++sessionGeneration;
           try {
             const { profile, provider } = await repo.fetchSession();
             const profiles = profile ? await repo.fetchProfiles() : [];
+            if (generation !== sessionGeneration) return true; // sudah ada pemuatan yang lebih baru
             const usesPassword = provider === 'email';
             set({
               user: profile,
@@ -84,13 +91,17 @@ export const useAuthStore = create<AuthState>()(
               usesPassword,
               mustChangePassword: Boolean(profile && usesPassword && !profile.is_password_changed),
               isReady: true,
+              error: null,
             });
+            return true;
           } catch (err) {
+            if (generation !== sessionGeneration) return true;
             set({ user: null, isAuthenticated: false, isReady: true, error: errorMessage(err, 'Gagal memuat sesi.') });
+            return false;
           }
         };
 
-        await loadSession();
+        const ok = await loadSession();
 
         if (!authListenerAttached) {
           authListenerAttached = true;
@@ -100,9 +111,10 @@ export const useAuthStore = create<AuthState>()(
             }
           });
         }
+        return ok;
       },
 
-      loginWithGoogle: async () => {
+      loginWithGoogle: async (nextPath = '/') => {
         set({ isLoading: true, error: null });
 
         if (!isDemoMode()) {
@@ -110,7 +122,7 @@ export const useAuthStore = create<AuthState>()(
           const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-              redirectTo: `${window.location.origin}/api/auth/callback`,
+              redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(safeNextPath(nextPath))}`,
               queryParams: {
                 hd: 'umkt.ac.id', // Petunjuk UI Google; validasi domain sebenarnya di callback & trigger DB
               },
@@ -127,7 +139,7 @@ export const useAuthStore = create<AuthState>()(
         // Mode demo: simulasi SSO kampus
         await new Promise((resolve) => setTimeout(resolve, 600));
         const defaultGoogleUser =
-          get().profiles.find((p) => p.email === 'rian.pratama@umkt.ac.id') || INITIAL_PROFILES[0];
+          INITIAL_PROFILES.find((p) => p.email === 'rian.pratama@umkt.ac.id') || INITIAL_PROFILES[0];
         set({
           user: defaultGoogleUser,
           isAuthenticated: true,
@@ -146,18 +158,23 @@ export const useAuthStore = create<AuthState>()(
         if (!isDemoMode()) {
           try {
             await repo.signInWithNim(nimToEmail(cleanNIM), password);
-            await get().initialize();
-            set({ isLoading: false });
-            return { success: true };
           } catch {
             const errMsg = 'NIM atau kata sandi tidak cocok.';
             set({ isLoading: false, error: errMsg });
             return { success: false, error: errMsg };
           }
+          const loaded = await get().initialize();
+          if (!loaded || !get().isAuthenticated) {
+            const errMsg = get().error || 'Login berhasil, tetapi profil akun tidak ditemukan. Hubungi KM / admin.';
+            set({ isLoading: false, error: errMsg });
+            return { success: false, error: errMsg };
+          }
+          set({ isLoading: false });
+          return { success: true };
         }
 
         await new Promise((resolve) => setTimeout(resolve, 500));
-        const found = get().profiles.find((p) => p.nim === cleanNIM);
+        const found = INITIAL_PROFILES.find((p) => p.nim === cleanNIM);
         const storedHash = found ? get().demoPasswordHashes[found.id] : undefined;
         const passwordOk = found
           ? storedHash
@@ -213,7 +230,7 @@ export const useAuthStore = create<AuthState>()(
 
       switchUser: (userId: string) => {
         if (!isDemoMode()) return;
-        const found = get().profiles.find((p) => p.id === userId);
+        const found = INITIAL_PROFILES.find((p) => p.id === userId);
         if (found) {
           set({ user: found, isAuthenticated: true, mustChangePassword: false, usesPassword: true });
         }
@@ -221,7 +238,7 @@ export const useAuthStore = create<AuthState>()(
 
       switchRole: (role: UserRole) => {
         if (!isDemoMode()) return;
-        const targetProfile = get().profiles.find((p) => p.role === role);
+        const targetProfile = INITIAL_PROFILES.find((p) => p.role === role);
         if (targetProfile) {
           set({ user: targetProfile, isAuthenticated: true, mustChangePassword: false, usesPassword: true });
         }

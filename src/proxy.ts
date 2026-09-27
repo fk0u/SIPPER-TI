@@ -9,6 +9,7 @@ const ROLE_RULES: { prefix: string; roles: string[] }[] = [
 ];
 
 const PUBLIC_PREFIXES = ['/login', '/lecturer/', '/api/auth/'];
+const PASSWORD_PAGE = '/settings/password';
 
 export async function proxy(request: NextRequest) {
   if (!isSupabaseConfigured()) return NextResponse.next();
@@ -50,10 +51,19 @@ export async function proxy(request: NextRequest) {
     return redirectTo('/login', pathname === '/' ? undefined : { next: pathname });
   }
 
+  const usesPassword = user.app_metadata?.provider === 'email';
   const rule = ROLE_RULES.find((r) => pathname.startsWith(r.prefix));
-  if (rule) {
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-    if (!profile || !rule.roles.includes(profile.role)) {
+
+  if (rule || usesPassword) {
+    const { data: profile } = await supabase
+      .rpc('get_my_profile')
+      .maybeSingle<{ role: string; is_password_changed: boolean }>();
+
+    // Akun NIM dengan password default wajib menggantinya sebelum mengakses halaman lain.
+    if (usesPassword && profile && !profile.is_password_changed && pathname !== PASSWORD_PAGE) {
+      return redirectTo(PASSWORD_PAGE);
+    }
+    if (rule && (!profile || !rule.roles.includes(profile.role))) {
       return redirectTo('/', { denied: '1' });
     }
   }

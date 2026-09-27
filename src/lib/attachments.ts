@@ -35,7 +35,8 @@ export function sanitizeFileName(name: string): string {
 }
 
 export function formatFileSize(size?: number): string {
-  if (!size) return '-';
+  if (size === undefined || size === null) return '-';
+  if (size === 0) return '0 KB';
   if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(size / 1024))} KB`;
 }

@@ -8,6 +8,14 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   const next = safeNextPath(searchParams.get('next'));
 
+  // Registrasi pertama akun non-UMKT ditolak trigger DB sebelum kode dibuat;
+  // Supabase mengalihkan ke sini dengan error_description.
+  const providerError = searchParams.get('error_description') ?? searchParams.get('error');
+  if (providerError) {
+    const isDomainError = /umkt|database error saving new user/i.test(providerError);
+    return NextResponse.redirect(`${origin}/login?error=${isDomainError ? 'domain' : 'auth_callback_failed'}`);
+  }
+
   if (code && isSupabaseConfigured()) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
@@ -15,7 +23,8 @@ export async function GET(request: Request) {
     if (!error) {
       // Parameter `hd` Google hanya petunjuk UI — validasi domain wajib di server.
       if (!isCampusEmail(data.user?.email)) {
-        await supabase.auth.signOut();
+        // Hapus cookie sesi lokal meskipun pemanggilan logout ke server gagal
+        await supabase.auth.signOut({ scope: 'local' });
         return NextResponse.redirect(`${origin}/login?error=domain`);
       }
       return NextResponse.redirect(`${origin}${next}`);

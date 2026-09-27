@@ -8,7 +8,7 @@
 Sistem SIPPER-TI memiliki 4 peran pengguna:
 1. **Mahasiswa:** Mengajukan izin mandiri, mengunggah berkas surat sakit/tugas, dan memantau status persetujuan.
 2. **Sipen (Sie Pendidikan):** Mahasiswa penanggung jawab mata kuliah tertentu yang bertugas mereview perizinan, memvalidasi surat bukti, dan membantu pengajuan izin proxy jika teman sekelas berhalangan.
-3. **KM (Ketua Kelas):** Supervisor seluruh perizinan kelas, berwenang mengelola token dosen, melihat rekap kelas penuh, dan melakukan override persetujuan jika Sipen berhalangan.
+3. **KM (Ketua Kelas):** Supervisor seluruh perizinan kelas, berwenang mengelola token dosen, melihat rekap kelas penuh, dan memverifikasi izin di semua mata kuliah jika Sipen berhalangan. Keputusan verifikasi bersifat final.
 4. **Dosen Pengampu:** Mengakses rekapitulasi kehadiran mahasiswa secara instan tanpa perlu registrasi melalui **Guest Access Link**.
 
 ---

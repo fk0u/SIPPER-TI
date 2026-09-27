@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuthStore, isDemoMode } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 
 const PASSWORD_PAGE = '/settings/password';
@@ -21,7 +21,12 @@ export function AuthBootstrap() {
   }, [initialize]);
 
   useEffect(() => {
-    if (userId) void load();
+    if (userId) {
+      void load();
+    } else if (!isDemoMode()) {
+      // Logout / sesi berakhir: jangan biarkan data pengguna sebelumnya tetap di memori.
+      useLeaveStore.setState({ requests: [], courses: [], courseSipen: [], lecturerTokens: [], isLoaded: false });
+    }
   }, [userId, load]);
 
   useEffect(() => {

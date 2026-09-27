@@ -8,8 +8,8 @@
 | Status | Arti |
 | :--- | :--- |
 | **Unit** | Dicakup unit test Vitest (`npm test`) |
-| **RLS** | Dicakup `scripts/test-rls.sh` terhadap PostgreSQL 16 (`npm run test:rls`, juga di CI) |
-| **E2E Demo** | Diverifikasi skenario Playwright pada mode demo (27 Sep 2026) |
+| **RLS** | Dicakup assertion `supabase/tests/rls_test.sql` via `npm run test:rls` (PostgreSQL 16, juga di CI) |
+| **E2E Demo** | Dicakup `e2e/demo.e2e.mjs` via `npm run test:e2e` (Playwright, mode demo, juga di CI) |
 | **Pending Live** | Kode tersedia, perlu diverifikasi manual dengan project Supabase nyata |
 
 ---
@@ -26,6 +26,10 @@
 | **AUTH-06** | Akses rute terlindungi tanpa login | Diarahkan ke `/login?next=<rute>`. | E2E Demo (klien), Pending Live (`src/proxy.ts`) |
 | **AUTH-07** | Open redirect via `next` | `//evil.com`, `https://…` ditolak → `/`. | Unit |
 | **AUTH-08** | Mahasiswa mengubah `role` sendiri | Ditolak trigger `protect_profile_columns`. | RLS |
+| **AUTH-09** | Mahasiswa menandai `is_password_changed` sendiri | Ditolak; flag hanya diubah trigger saat password auth berubah. | RLS |
+| **AUTH-10** | Signup dengan metadata NIM orang lain | NIM diturunkan dari email kampus; metadata diabaikan. | RLS |
+| **AUTH-11** | Akses halaman lain dengan password default (live) | `src/proxy.ts` mengalihkan ke `/settings/password`. | Pending Live |
+| **AUTH-12** | Membaca email/telepon teman | Ditolak (grant per kolom); profil sendiri via `get_my_profile()`. | RLS |
 
 ---
 
@@ -65,6 +69,8 @@
 | **APP-04** | Approve izin milik sendiri | Ditolak (UI, store, RLS). | Unit, RLS |
 | **APP-05** | Verifikator mengubah alasan/tanggal saat approve | Ditolak trigger `protect_leave_request_columns`. | RLS |
 | **APP-06** | Mahasiswa membuka `/approval` | Halaman "Akses Ditolak" / redirect oleh proxy. | E2E Demo, Pending Live |
+| **APP-07** | Mengubah keputusan yang sudah final (Sipen/KM) | Ditolak — hanya izin `pending` yang dapat diverifikasi. | RLS |
+| **APP-08** | Policy/RPC lama yang longgar di database live | Semua policy tabel aplikasi dibuat ulang; RPC lama dicabut dari klien. | RLS |
 
 ---
 
@@ -75,5 +81,5 @@
 | **GST-01** | Token valid dibuka di perangkat lain | Rekap tampil tanpa login (server-rendered via RPC). | RLS (RPC), Pending Live |
 | **GST-02** | Token tidak dikenal / kedaluwarsa / dicabut | Pesan sesuai status. | Unit, RLS, E2E Demo |
 | **GST-03** | Privasi rekap | Hanya izin `approved`; tanpa alasan & lampiran. | Unit, RLS, E2E Demo |
-| **GST-04** | Mahasiswa/Sipen membuat token | Hanya KM yang bisa membuat & mencabut. | Unit, RLS |
+| **GST-04** | Mahasiswa/Sipen membuat token | Hanya KM yang bisa membuat & mencabut (termasuk token buatan KM lain). | Unit, RLS |
 | **GST-05** | Cetak rekap | Tampilan cetak via `window.print()`. | Manual |

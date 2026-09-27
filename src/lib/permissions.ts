@@ -56,16 +56,8 @@ export function canUseProxy(user: Actor): boolean {
   return isSupervisor(user);
 }
 
-export function canAccessApproval(user: Actor): boolean {
-  return isSupervisor(user);
-}
-
 export function canManageTokens(user: Actor): boolean {
   return Boolean(user && user.role === 'km');
-}
-
-export function canViewTokens(user: Actor): boolean {
-  return isSupervisor(user);
 }
 
 export type TokenState = 'active' | 'expired' | 'revoked';

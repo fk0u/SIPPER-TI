@@ -30,7 +30,7 @@
 - [x] Perbaikan bug: lampiran palsu, blob URL, tanggal UTC, jadwal hari ini, hydration mismatch, kedipan tema.
 - [x] Test: Vitest (unit), `scripts/test-rls.sh` (PostgreSQL), CI GitHub Actions.
 
-## Milestone 3: Database & Production Sync (Upcoming)
+## Milestone 3: Database & Production Sync (In Progress)
 - [x] Data layer Supabase (`src/lib/data/supabaseRepository.ts`) aktif otomatis saat env terisi; mode demo sebagai fallback.
 - [x] Login NIM via Supabase Auth + halaman ganti password wajib + `scripts/seed-auth-users.mjs`.
 - [ ] Terapkan migrasi & seed ke project Supabase produksi, lalu jalankan skenario "Pending Live" di `docs/test-cases.md`.

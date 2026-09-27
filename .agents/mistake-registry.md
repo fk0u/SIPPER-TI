@@ -32,5 +32,6 @@
 
 ## Entry 005: Klaim "Validated" Tanpa Implementasi
 - **Error Description:** `docs/test-cases.md` dan roadmap menandai fitur sebagai tervalidasi (domain check, logout cookie, zoom viewer, `npm run build` 100%) padahal belum ada implementasi/lint gagal.
+- **Root Cause:** Status "Validated" ditulis tanpa bukti yang dapat diulang; belum ada test/lint yang dijalankan.
 - **Prevention Rule:** Status "Validated" hanya bila ada bukti yang dapat diulang (unit test, `scripts/test-rls.sh`, atau skenario E2E yang dijalankan). Bedakan "Validated (demo)" dan "Validated (live)".
 

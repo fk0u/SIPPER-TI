@@ -19,6 +19,13 @@ export interface Profile {
   updated_at: string;
 }
 
+/**
+ * Kolom profil yang boleh dilihat sesama pengguna (direktori kelas).
+ * Email, telepon, dan status password hanya untuk pemilik akun.
+ */
+export const PROFILE_DIRECTORY_COLUMNS = 'id,nim,full_name,role,avatar_url' as const;
+export type ProfileSummary = Pick<Profile, 'id' | 'nim' | 'full_name' | 'role' | 'avatar_url'>;
+
 export interface Course {
   id: string;
   code: string;
@@ -45,7 +52,7 @@ export interface LeaveAttachment {
   name: string;
   /** URL tampilan. Pada mode live berupa signed URL sementara (tidak disimpan di DB). */
   url: string;
-  /** Path objek di bucket `leave-attachments` (mode live). */
+  /** Path objek di bucket `permit-proofs` (mode live). */
   path?: string;
   type: string;
   size?: number;
@@ -70,10 +77,10 @@ export interface LeaveRequest {
 }
 
 export interface LeaveRequestWithRelations extends LeaveRequest {
-  student: Profile;
+  student: ProfileSummary;
   course: Course;
-  creator: Profile;
-  verifier?: Profile | null;
+  creator: ProfileSummary;
+  verifier?: ProfileSummary | null;
 }
 
 export interface LecturerToken {
@@ -100,7 +107,7 @@ export interface LecturerRecapLeave {
 }
 
 export type LecturerRecapResult =
-  | { status: 'not_found' | 'expired' | 'revoked' }
+  | { status: 'not_found' | 'expired' | 'revoked' | 'unavailable' }
   | {
       status: 'ok';
       token: Pick<LecturerToken, 'label' | 'course_id' | 'expires_at'>;

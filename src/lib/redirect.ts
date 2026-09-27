@@ -1,6 +1,6 @@
 /** Hanya izinkan path internal relatif untuk mencegah open redirect. */
-export function safeNextPath(next: string | null | undefined, fallback = '/'): string {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) {
+export function safeNextPath(next: unknown, fallback = '/'): string {
+  if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) {
     return fallback;
   }
   return next;

@@ -34,6 +34,10 @@ const INVALID_MESSAGES = {
     title: 'Tautan Akses Dosen Telah Dicabut',
     body: 'Tautan ini telah dinonaktifkan oleh Ketua Kelas.',
   },
+  unavailable: {
+    title: 'Rekap Sementara Tidak Dapat Dimuat',
+    body: 'Terjadi gangguan layanan. Tautan Anda kemungkinan masih berlaku — silakan muat ulang beberapa saat lagi.',
+  },
 } as const;
 
 export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ recap, demo = false }) => {
@@ -51,7 +55,9 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ recap, dem
             </div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">{msg.title}</h2>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              {msg.body} Silakan hubungi Sipen mata kuliah atau KM Kelas Internasional untuk mendapatkan tautan baru.
+              {msg.body}
+              {recap.status !== 'unavailable' &&
+                ' Silakan hubungi KM Kelas Internasional untuk mendapatkan tautan baru.'}
             </p>
             {demo && (
               <p className="text-[11px] text-amber-700 dark:text-amber-400">

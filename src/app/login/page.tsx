@@ -11,8 +11,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   auth_callback_failed: 'Login dengan akun kampus gagal. Silakan coba lagi.',
 };
 
+function errorMessageFor(error: string | string[] | undefined): string | null {
+  if (typeof error !== 'string' || !error) return null;
+  return Object.hasOwn(ERROR_MESSAGES, error) ? ERROR_MESSAGES[error] : ERROR_MESSAGES.auth_callback_failed;
+}
+
 interface LoginPageProps {
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ next?: string | string[]; error?: string | string[] }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
@@ -21,7 +26,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <div className="py-8 sm:py-12 flex items-center justify-center">
       <LoginForm
         nextPath={safeNextPath(next)}
-        initialError={error ? (ERROR_MESSAGES[error] ?? ERROR_MESSAGES.auth_callback_failed) : null}
+        initialError={errorMessageFor(error)}
       />
     </div>
   );

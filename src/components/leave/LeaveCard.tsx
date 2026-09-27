@@ -269,12 +269,15 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
       </div>
 
       {/* Lightbox Document Viewer */}
-      <DocumentViewerModal
-        isOpen={isViewerOpen}
-        onClose={() => setIsViewerOpen(false)}
-        attachments={request.file_urls}
-        title={`Bukti Perizinan — ${request.student.full_name}`}
-      />
+      {/* Dirender hanya saat terbuka agar signed URL selalu diminta ulang (tidak memakai cache kedaluwarsa) */}
+      {isViewerOpen && (
+        <DocumentViewerModal
+          isOpen
+          onClose={() => setIsViewerOpen(false)}
+          attachments={request.file_urls}
+          title={`Bukti Perizinan — ${request.student.full_name}`}
+        />
+      )}
 
       {/* Rejection Modal with Preset Reasons */}
       {isRejectModalOpen && (

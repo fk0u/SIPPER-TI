@@ -21,7 +21,11 @@ async function fetchRecap(token: string): Promise<LecturerRecapResult> {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await supabase.rpc('get_lecturer_recap', { p_token: token });
-  if (error || !data) return { status: 'not_found' };
+  if (error || !data) {
+    // Gangguan layanan / migrasi belum diterapkan ≠ token tidak valid
+    console.error('[lecturer-recap] RPC gagal:', error?.message ?? 'tanpa data');
+    return { status: 'unavailable' };
+  }
   return data as LecturerRecapResult;
 }
 

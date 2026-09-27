@@ -12,7 +12,7 @@ SIPPER-TI adalah aplikasi web modern kelas produksi untuk otomasi manajemen peri
 ### 1. 👥 Manajemen Peran Multi-Level (Role-Based Access Control)
 - **Mahasiswa:** Mengajukan izin pribadi (Sakit / Izin Pribadi / Tugas Lomba), melampirkan berkas bukti (PDF/Foto), dan melacak status verifikasi secara langsung.
 - **Sipen (Sie Pendidikan):** Memvalidasi bukti surat, menyetujui atau menolak perizinan dengan catatan alasan, serta mengajukan izin proxy atas nama mahasiswa lain yang berhalangan hadir.
-- **KM (Ketua Kelas):** Supervisor absensi kelas penuh, berwenang mengelola tautan token dosen, memantau rekap menyeluruh, dan mengoverride keputusan izin.
+- **KM (Ketua Kelas):** Supervisor absensi kelas penuh, berwenang mengelola tautan token dosen, memantau rekap menyeluruh, dan memverifikasi izin di semua mata kuliah. Keputusan verifikasi bersifat final (tidak dapat diubah setelah disetujui/ditolak).
 - **Dosen Pengampu:** Mengakses rekapitulasi kehadiran mahasiswa secara instan melalui **Guest Access Token Link** tanpa perlu login atau registrasi akun.
 
 ### 2. 📱 Arsitektur Navigasi Terpisah (Desktop vs Mobile)

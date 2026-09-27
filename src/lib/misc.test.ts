@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isCampusEmail, safeNextPath } from './redirect';
-import { sanitizeFileName, validateAttachmentFiles } from './attachments';
+import { formatFileSize, sanitizeFileName, validateAttachmentFiles } from './attachments';
 import { buildLecturerRecap } from './lecturerRecap';
 import { INITIAL_COURSES, INITIAL_LECTURER_TOKENS, INITIAL_LEAVE_REQUESTS } from './mockData';
 
@@ -11,6 +11,8 @@ describe('redirect', () => {
     expect(safeNextPath('/\\evil.com')).toBe('/');
     expect(safeNextPath('https://evil.com')).toBe('/');
     expect(safeNextPath(null)).toBe('/');
+    // ?next=a&next=b menghasilkan array
+    expect(safeNextPath(['/a', '/b'])).toBe('/');
   });
   it('isCampusEmail hanya domain UMKT', () => {
     expect(isCampusEmail('a@umkt.ac.id')).toBe(true);
@@ -33,6 +35,11 @@ describe('attachments', () => {
     ]);
     expect(valid.map((f) => f.name)).toEqual(['ok.jpg']);
     expect(errors).toHaveLength(2);
+  });
+  it('formatFileSize menangani 0 dan undefined', () => {
+    expect(formatFileSize(0)).toBe('0 KB');
+    expect(formatFileSize(undefined)).toBe('-');
+    expect(formatFileSize(2 * 1024 * 1024)).toBe('2.0 MB');
   });
   it('sanitizeFileName aman untuk path storage', () => {
     expect(sanitizeFileName('../surat dokter (1).jpg')).toBe('.._surat_dokter_1_.jpg');

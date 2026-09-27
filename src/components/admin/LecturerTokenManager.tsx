@@ -21,7 +21,8 @@ import {
 
 export const LecturerTokenManager: React.FC = () => {
   const { user } = useAuthStore();
-  const { lecturerTokens, courses, generateLecturerToken, deleteLecturerToken } = useLeaveStore();
+  const { lecturerTokens: allTokens, courses, generateLecturerToken, deleteLecturerToken } = useLeaveStore();
+  const lecturerTokens = allTokens.filter((t) => !t.revoked_at);
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>('all');
   const [tokenLabel, setTokenLabel] = useState('');
@@ -45,6 +46,7 @@ export const LecturerTokenManager: React.FC = () => {
     const res = await generateLecturerToken(courseId, tokenLabel, user);
     setIsCreating(false);
     if (!res.success) {
+      setIsSuccess(false);
       toast.error(res.error || 'Gagal membuat tautan akses dosen.');
       return;
     }

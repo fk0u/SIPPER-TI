@@ -1,4 +1,4 @@
-import { Profile, Course, LeaveRequestWithRelations, LecturerToken } from '@/types/database';
+import { Profile, Course, CourseSipen, LeaveRequestWithRelations, LecturerToken } from '@/types/database';
 
 export const INITIAL_COURSES: Course[] = [
   {
@@ -164,6 +164,34 @@ export const INITIAL_PROFILES: Profile[] = [
   },
 ];
 
+// Selaras dengan supabase/seed.sql bagian 3 (course_sipen)
+export const INITIAL_COURSE_SIPEN: CourseSipen[] = [
+  {
+    id: 'b1111111-1111-1111-1111-111111111111',
+    user_id: 'a0000000-0000-0000-0000-000000000002', // Sarah -> Cloud Architecture
+    course_id: 'c1111111-1111-1111-1111-111111111111',
+    created_at: '2026-09-01T08:00:00Z',
+  },
+  {
+    id: 'b2222222-2222-2222-2222-222222222222',
+    user_id: 'a0000000-0000-0000-0000-000000000002', // Sarah -> SQA
+    course_id: 'c4444444-4444-4444-4444-444444444444',
+    created_at: '2026-09-01T08:00:00Z',
+  },
+  {
+    id: 'b3333333-3333-3333-3333-333333333333',
+    user_id: 'a0000000-0000-0000-0000-000000000005', // Kevin -> Machine Learning
+    course_id: 'c2222222-2222-2222-2222-222222222222',
+    created_at: '2026-09-01T08:00:00Z',
+  },
+  {
+    id: 'b4444444-4444-4444-4444-444444444444',
+    user_id: 'a0000000-0000-0000-0000-000000000005', // Kevin -> Mobile
+    course_id: 'c3333333-3333-3333-3333-333333333333',
+    created_at: '2026-09-01T08:00:00Z',
+  },
+];
+
 export const INITIAL_LEAVE_REQUESTS: LeaveRequestWithRelations[] = [
   {
     id: 'e1111111-1111-1111-1111-111111111111',
@@ -223,7 +251,7 @@ export const INITIAL_LEAVE_REQUESTS: LeaveRequestWithRelations[] = [
     id: 'e3333333-3333-3333-3333-333333333333',
     student_id: 'a0000000-0000-0000-0000-000000000007',
     course_id: 'c2222222-2222-2222-2222-222222222222',
-    leave_type: 'acara',
+    leave_type: 'acara_kampus',
     start_date: '2026-09-22',
     end_date: '2026-09-22',
     reason: 'Delegasi Lomba Finalis Hackathon Artificial Intelligence Nasional 2026.',
@@ -250,7 +278,7 @@ export const INITIAL_LEAVE_REQUESTS: LeaveRequestWithRelations[] = [
 
 export const INITIAL_LECTURER_TOKENS: LecturerToken[] = [
   {
-    id: 't1111111-1111-1111-1111-111111111111',
+    id: 'f1111111-1111-1111-1111-111111111111',
     token: 'demo-dosen-hendra-2026',
     course_id: 'c1111111-1111-1111-1111-111111111111',
     label: 'Link Presensi Dosen Dr. Hendra (Cloud Architecture)',
@@ -260,7 +288,7 @@ export const INITIAL_LECTURER_TOKENS: LecturerToken[] = [
     course: INITIAL_COURSES[0],
   },
   {
-    id: 't2222222-2222-2222-2222-222222222222',
+    id: 'f2222222-2222-2222-2222-222222222222',
     token: 'demo-dosen-semua-matkul',
     course_id: null,
     label: 'Link Supervisi Koordinator Kelas Internasional',

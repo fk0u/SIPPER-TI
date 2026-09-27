@@ -8,7 +8,7 @@
 Sistem SIPPER-TI memiliki 4 peran pengguna:
 1. **Mahasiswa:** Mengajukan izin mandiri, mengunggah berkas surat sakit/tugas, dan memantau status persetujuan.
 2. **Sipen (Sie Pendidikan):** Mahasiswa penanggung jawab mata kuliah tertentu yang bertugas mereview perizinan, memvalidasi surat bukti, dan membantu pengajuan izin proxy jika teman sekelas berhalangan.
-3. **KM (Ketua Kelas):** Supervisor seluruh perizinan kelas, berwenang mengelola token dosen, melihat rekap kelas penuh, dan melakukan override persetujuan jika Sipen berhalangan.
+3. **KM (Ketua Kelas):** Supervisor seluruh perizinan kelas, berwenang mengelola token dosen, melihat rekap kelas penuh, dan memverifikasi izin di semua mata kuliah jika Sipen berhalangan. Keputusan verifikasi bersifat final.
 4. **Dosen Pengampu:** Mengakses rekapitulasi kehadiran mahasiswa secara instan tanpa perlu registrasi melalui **Guest Access Link**.
 
 ---
@@ -70,7 +70,8 @@ Bila ada teman sekelas yang sakit parah/mengalami kecelakaan dan tidak dapat men
 ## 🎓 5. PANDUAN GUEST ACCESS UNTUK DOSEN PENGAMPU
 
 Dosen pengampu tidak perlu menghafal password atau membuat akun:
-1. Sipen atau KM akan mengirimkan link khusus via WhatsApp (contoh: `https://sipper-ti.umkt.ac.id/lecturer/demo-dosen-hendra-2026`).
+1. Ketua Kelas (KM) akan mengirimkan link khusus via WhatsApp (contoh: `https://sipper-ti.umkt.ac.id/lecturer/demo-dosen-hendra-2026`).
 2. Klik link tersebut di ponsel atau laptop.
 3. Rekap presensi dan daftar mahasiswa yang izin hari ini akan tampil secara langsung.
-4. Dosen dapat mengklik nama mahasiswa untuk melihat lampiran surat dokter atau menekan tombol **"Cetak Rekap Presensi"** untuk arsip akademik.
+4. Rekap hanya menampilkan izin yang **sudah disetujui** (nama, NIM, kategori, tanggal, durasi). Alasan dan berkas bukti bersifat rahasia dan tidak ditampilkan pada tautan tamu. Tekan **"Cetak Rekap"** untuk arsip akademik.
+5. Tautan berlaku 180 hari dan dapat dicabut KM kapan saja.

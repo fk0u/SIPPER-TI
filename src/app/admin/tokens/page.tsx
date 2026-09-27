@@ -1,3 +1,4 @@
+import { RequireRole } from '@/components/auth/RequireRole';
 import { LecturerTokenManager } from '@/components/admin/LecturerTokenManager';
 
 export const metadata = {
@@ -8,7 +9,9 @@ export const metadata = {
 export default function AdminTokensPage() {
   return (
     <div className="py-4 sm:py-6">
-      <LecturerTokenManager />
+      <RequireRole roles={['km', 'sipen']}>
+        <LecturerTokenManager />
+      </RequireRole>
     </div>
   );
 }

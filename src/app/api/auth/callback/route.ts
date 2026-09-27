@@ -1,19 +1,37 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { isSupabaseConfigured } from '@/lib/supabase/config';
+import { isCampusEmail, safeNextPath } from '@/lib/redirect';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/';
+  const next = safeNextPath(searchParams.get('next'));
 
-  if (code) {
+  // Registrasi pertama akun non-UMKT ditolak trigger DB sebelum kode dibuat;
+  // Supabase mengalihkan ke sini dengan error_description.
+  const providerError = searchParams.get('error_description') ?? searchParams.get('error');
+  if (providerError) {
+    // Hanya pesan eksplisit dari trigger handle_new_user yang dianggap penolakan domain;
+    // kegagalan database lain dilaporkan sebagai kegagalan login umum.
+    const isDomainError = /registrasi dibatasi/i.test(providerError);
+    return NextResponse.redirect(`${origin}/login?error=${isDomainError ? 'domain' : 'auth_callback_failed'}`);
+  }
+
+  if (code && isSupabaseConfigured()) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
     if (!error) {
+      // Parameter `hd` Google hanya petunjuk UI — validasi domain wajib di server.
+      if (!isCampusEmail(data.user?.email)) {
+        // Hapus cookie sesi lokal meskipun pemanggilan logout ke server gagal
+        await supabase.auth.signOut({ scope: 'local' });
+        return NextResponse.redirect(`${origin}/login?error=domain`);
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
 
-  // Return to login with error if auth failed
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
 }

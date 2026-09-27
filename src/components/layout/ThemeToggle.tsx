@@ -1,24 +1,18 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useThemeStore } from '@/store/useThemeStore';
+import { useHydrated } from '@/lib/useHydrated';
 import { Sun, Moon } from 'lucide-react';
 
 export const ThemeToggle: React.FC = () => {
   const { theme, toggleTheme } = useThemeStore();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
 
   useEffect(() => {
-    setMounted(true);
-    if (typeof document !== 'undefined') {
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-      }
-    }
+    const classes = document.documentElement.classList;
+    classes.toggle('dark', theme === 'dark');
+    classes.toggle('light', theme !== 'dark');
   }, [theme]);
 
   if (!mounted) {

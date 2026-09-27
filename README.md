@@ -12,7 +12,7 @@ SIPPER-TI adalah aplikasi web modern kelas produksi untuk otomasi manajemen peri
 ### 1. 👥 Manajemen Peran Multi-Level (Role-Based Access Control)
 - **Mahasiswa:** Mengajukan izin pribadi (Sakit / Izin Pribadi / Tugas Lomba), melampirkan berkas bukti (PDF/Foto), dan melacak status verifikasi secara langsung.
 - **Sipen (Sie Pendidikan):** Memvalidasi bukti surat, menyetujui atau menolak perizinan dengan catatan alasan, serta mengajukan izin proxy atas nama mahasiswa lain yang berhalangan hadir.
-- **KM (Ketua Kelas):** Supervisor absensi kelas penuh, berwenang mengelola tautan token dosen, memantau rekap menyeluruh, dan mengoverride keputusan izin.
+- **KM (Ketua Kelas):** Supervisor absensi kelas penuh, berwenang mengelola tautan token dosen, memantau rekap menyeluruh, dan memverifikasi izin di semua mata kuliah. Keputusan verifikasi bersifat final (tidak dapat diubah setelah disetujui/ditolak).
 - **Dosen Pengampu:** Mengakses rekapitulasi kehadiran mahasiswa secara instan melalui **Guest Access Token Link** tanpa perlu login atau registrasi akun.
 
 ### 2. 📱 Arsitektur Navigasi Terpisah (Desktop vs Mobile)
@@ -47,9 +47,10 @@ SIPPER-TI adalah aplikasi web modern kelas produksi untuk otomasi manajemen peri
 | **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
 | **State Management** | [Zustand 5](https://github.com/pmndrs/zustand) (dengan persist middleware) |
 | **Iconography** | [Lucide React](https://lucide.dev/) |
-| **Micro-Interactions** | [ReactBits](https://reactbits.dev/) & [GSAP](https://gsap.com/) |
+| **Micro-Interactions** | [ReactBits](https://reactbits.dev/) |
 | **Font** | Geist Sans & Geist Mono |
-| **Database & Auth (Opsional)** | [Supabase PostgreSQL](https://supabase.com/) |
+| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL + RLS, Auth, Storage) — opsional, fallback mode demo |
+| **Testing** | Vitest, SQL checks (`scripts/test-rls.sh`), GitHub Actions |
 
 ---
 
@@ -67,8 +68,9 @@ SIPPER-TI/
 │   │   ├── admin/tokens/        # Kelola Link Akses Dosen
 │   │   ├── approval/            # Terminal Review Perizinan
 │   │   ├── leave/new/           # Formulir Pengajuan Izin
-│   │   ├── lecturer/[token]/    # Portal Tamu Dosen Pengampu
+│   │   ├── lecturer/[token]/    # Portal Tamu Dosen (server-rendered via RPC)
 │   │   ├── login/               # Portal Masuk Akun Kampus
+│   │   ├── settings/password/   # Ganti kata sandi (wajib untuk akun NIM baru)
 │   │   ├── globals.css          # Desain tokens, doppelrand, liquid-glass
 │   │   ├── layout.tsx           # Root layout dengan Geist font
 │   │   └── page.tsx             # Beranda Bento 2.0 & Feed Izin
@@ -80,9 +82,15 @@ SIPPER-TI/
 │   │   ├── leave/               # Form Izin, Kartu Izin, Document Viewer
 │   │   ├── lecturer/            # Rekap Presensi Dosen & Cetak
 │   │   └── reactbits/           # SpotlightCard, ShinyText, CountUp
-│   ├── lib/                     # Mock data & Supabase client
+│   ├── lib/                     # permissions, date, attachments, data/ (Supabase repo), supabase/
+│   ├── proxy.ts                 # Guard rute & refresh sesi (Next.js 16)
 │   ├── store/                   # Zustand stores (useAuthStore, useLeaveStore)
 │   └── types/                   # TypeScript interfaces & database schemas
+├── supabase/
+│   ├── migrations/              # Skema awal + security hardening
+│   ├── tests/                   # Shim Supabase + uji RLS
+│   └── seed.sql                 # Data contoh (dev/staging)
+├── scripts/                     # test-rls.sh, seed-auth-users.mjs
 └── package.json
 ```
 
@@ -91,24 +99,39 @@ SIPPER-TI/
 ## ⚡ Memulai Pengembangan Lokal
 
 ### 1. Prasyarat
-- Node.js versi 18.18+ atau 20+
-- npm atau pnpm
+- Node.js 20+ (CI memakai 22)
+- (Opsional) PostgreSQL 16 client untuk `npm run test:rls`
 
-### 2. Instalasi Dependensi
+### 2. Instalasi & Menjalankan
 ```bash
 npm install
+npm run dev          # http://localhost:3000
 ```
+Tanpa file `.env.local`, aplikasi berjalan dalam **mode demo** (data contoh di browser).
 
-### 3. Menjalankan Server Pengembangan
-```bash
-npm run dev
-```
-Buka peramban di [http://localhost:3000](http://localhost:3000) (atau port yang dialokasikan).
+### 3. Mode Live (Supabase)
+1. Salin `.env.example` → `.env.local`, isi `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, dan `SUPABASE_SECRET_KEY`.
+2. Jalankan migrasi berurutan di Supabase SQL Editor / CLI:
+   `supabase/migrations/20260921_initial_schema.sql` lalu `20260927_security_hardening.sql`.
+3. Buat akun login NIM: `node --env-file=.env.local scripts/seed-auth-users.mjs [roster.csv]`.
+   Password awal = NIM dan wajib diganti saat login pertama (ditegakkan `src/proxy.ts`). Karena NIM mudah ditebak,
+   buat akun per batch sesaat sebelum dipakai dan minta mahasiswa segera masuk & mengganti password.
+4. (Dev/staging saja) jalankan `supabase/seed.sql` untuk data contoh.
+5. Aktifkan provider Google di Supabase Auth dan tambahkan `https://<domain>/api/auth/callback` ke Redirect URLs.
 
-### 4. Membangun untuk Produksi
+### 4. Kualitas & Pengujian
 ```bash
+npm run lint
+npm run typecheck
+npm test             # unit test (Vitest)
+npm run test:rls     # uji RLS di PostgreSQL (butuh PGHOST/PGUSER)
+# E2E mode demo (Playwright): build dulu, jalankan server, tunggu siap, lalu uji
+npx playwright install chromium
 npm run build
-npm run start
+PORT=3100 npm run start & SERVER_PID=$!
+E2E_BASE_URL=http://localhost:3100 npm run test:e2e   # menunggu server siap (maks. 120 dtk)
+kill $SERVER_PID
+npm run build
 ```
 
 ---
@@ -120,7 +143,7 @@ Untuk kemudahan pengujian tanpa konfigurasi OAuth, aplikasi dilengkapi dengan ak
 2. **Sarah Amalia (Sipen):** `sarah.amalia@umkt.ac.id` (NIM: `2311102441102`)
 3. **Budi Santoso (KM):** `budi.santoso@umkt.ac.id` (NIM: `2311102441103`)
 
-Gunakan tombol **"Akses Cepat Profil Demo"** di halaman login atau menu popover profil di header untuk berpindah akun secara instan.
+Pada **mode demo**, gunakan tombol **"Akses Cepat Profil Demo"** di halaman login atau menu profil di header untuk berpindah akun. Login NIM memakai NIM sebagai password awal dan akan meminta penggantian password. Fitur pengalih profil otomatis nonaktif pada mode live.
 
 ---
 

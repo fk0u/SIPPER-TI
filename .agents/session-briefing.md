@@ -18,3 +18,10 @@
   - Validasi produksi Next.js 16 (`npm run build` sukses 100% tanpa error TypeScript).
 - **Integrasi Graphify:** Guardrails `.gitignore` & `.graphifyignore` aktif, hook terpasang, knowledge graph terupdate secara berkala.
 
+## Update 27 Sep 2026 — Audit & Hardening
+- Audit lengkap: `docs/audit/2026-09-27-audit.md`.
+- Mode ganda demo/live; integrasi Supabase aktif bila env terisi (`.env.example`).
+- Hak akses: `src/lib/permissions.ts` (klien) + migrasi `20260927_security_hardening.sql` (RLS, sumber kebenaran).
+- Verifikasi wajib sebelum commit: `npm run lint && npm run typecheck && npm test && npm run build` (+ `npm run test:rls` bila menyentuh SQL).
+- Berikutnya: terapkan migrasi ke Supabase produksi & jalankan skenario "Pending Live" di `docs/test-cases.md`.
+

@@ -1,3 +1,4 @@
+import { RequireRole } from '@/components/auth/RequireRole';
 import { LeaveForm } from '@/components/leave/LeaveForm';
 
 export const metadata = {
@@ -8,7 +9,9 @@ export const metadata = {
 export default function NewLeavePage() {
   return (
     <div className="py-4 sm:py-6">
-      <LeaveForm />
+      <RequireRole>
+        <LeaveForm />
+      </RequireRole>
     </div>
   );
 }

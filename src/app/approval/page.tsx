@@ -1,3 +1,4 @@
+import { RequireRole } from '@/components/auth/RequireRole';
 import { ApprovalDashboard } from '@/components/approval/ApprovalDashboard';
 
 export const metadata = {
@@ -8,7 +9,9 @@ export const metadata = {
 export default function ApprovalPage() {
   return (
     <div className="py-4 sm:py-6">
-      <ApprovalDashboard />
+      <RequireRole roles={['km', 'sipen']}>
+        <ApprovalDashboard />
+      </RequireRole>
     </div>
   );
 }

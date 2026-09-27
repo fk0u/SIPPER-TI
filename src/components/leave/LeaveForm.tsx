@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
-import { LeaveType, LeaveAttachment } from '@/types/database';
+import { LeaveType } from '@/types/database';
+import { diffDaysInclusive, todayLocalISO } from '@/lib/date';
+import { formatFileSize, validateAttachmentFiles } from '@/lib/attachments';
+import { canUseProxy as canUseProxyFor, isSipenOf } from '@/lib/permissions';
+import { LEAVE_TYPES, LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import {
-  Calendar,
   UploadCloud,
   FileText,
   X,
@@ -15,8 +18,6 @@ import {
   Users,
   CheckCircle2,
   ArrowRight,
-  ShieldCheck,
-  Info,
   Clock,
   HeartPulse,
   Award,
@@ -25,60 +26,49 @@ import {
 export const LeaveForm: React.FC = () => {
   const router = useRouter();
   const { user, profiles } = useAuthStore();
-  const { courses, submitLeave } = useLeaveStore();
+  const { courses, courseSipen, submitLeave } = useLeaveStore();
 
   const [isProxy, setIsProxy] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(user?.id || '');
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
   const [leaveType, setLeaveType] = useState<LeaveType>('sakit');
-  
-  const todayStr = new Date().toISOString().split('T')[0];
+
+  const todayStr = todayLocalISO();
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
 
   const [reason, setReason] = useState('');
-  const [attachments, setAttachments] = useState<LeaveAttachment[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const canUseProxy = user?.role === 'km' || user?.role === 'sipen';
+  const canUseProxy = canUseProxyFor(user);
   const availableStudents = profiles.filter((p) => p.id !== user?.id);
+  // Sipen hanya boleh mengajukan proxy untuk mata kuliah yang dikelolanya
+  const proxyCourses =
+    user?.role === 'km' ? courses : courses.filter((c) => isSipenOf(user, c.id, courseSipen));
+  const courseOptions = isProxy ? proxyCourses : courses;
+  const effectiveCourseId = courseOptions.some((c) => c.id === selectedCourseId)
+    ? selectedCourseId
+    : courseOptions[0]?.id || '';
 
-  const startD = new Date(startDate);
-  const endD = new Date(endDate);
-  const diffDays =
-    endD >= startD
-      ? Math.ceil(Math.abs(endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1
-      : 0;
+  const diffDays = diffDaysInclusive(startDate, endDate);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const picked = e.target.files;
+    if (!picked || picked.length === 0) return;
 
-    setErrorMessage(null);
-    const newAttachments: LeaveAttachment[] = [];
-
-    Array.from(files).forEach((file) => {
-      if (file.size > 5 * 1024 * 1024) {
-        setErrorMessage(`Berkas "${file.name}" melebihi batas ukuran maksimal 5MB.`);
-        return;
-      }
-
-      const fileUrl = URL.createObjectURL(file);
-      newAttachments.push({
-        name: file.name,
-        url: fileUrl,
-        type: file.type || 'application/octet-stream',
-        size: file.size,
-      });
-    });
-
-    setAttachments((prev) => [...prev, ...newAttachments]);
+    const { valid, errors } = validateAttachmentFiles(Array.from(picked));
+    setFileErrors(errors);
+    setFiles((prev) => [...prev, ...valid]);
+    // Izinkan memilih ulang berkas yang sama
+    e.target.value = '';
   };
 
   const removeAttachment = (index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,8 +77,13 @@ export const LeaveForm: React.FC = () => {
 
     setErrorMessage(null);
 
-    if (new Date(endDate) < new Date(startDate)) {
+    if (endDate < startDate) {
       setErrorMessage('Tanggal selesai tidak boleh sebelum tanggal mulai perizinan.');
+      return;
+    }
+
+    if (!effectiveCourseId) {
+      setErrorMessage('Pilih mata kuliah terlebih dahulu.');
       return;
     }
 
@@ -97,35 +92,21 @@ export const LeaveForm: React.FC = () => {
       return;
     }
 
-    if (attachments.length === 0 && leaveType === 'sakit') {
-      setErrorMessage('Pengajuan sakit wajib melampirkan foto surat keterangan dokter / klinik.');
+    if (files.length === 0 && LEAVE_TYPE_META[leaveType].requiresAttachment) {
+      setErrorMessage(LEAVE_TYPE_META[leaveType].attachmentHint);
       return;
     }
 
     setIsSubmitting(true);
 
-    const studentIdToSubmit = isProxy ? selectedStudentId : user.id;
-
-    const finalAttachments =
-      attachments.length > 0
-        ? attachments
-        : [
-            {
-              name: 'surat_keterangan_resmi.jpg',
-              url: 'https://picsum.photos/seed/sipper-leave-proof/800/600',
-              type: 'image/jpeg',
-              size: 512000,
-            },
-          ];
-
     const result = await submitLeave({
-      student_id: studentIdToSubmit,
-      course_id: selectedCourseId,
+      student_id: isProxy ? selectedStudentId : user.id,
+      course_id: effectiveCourseId,
       leave_type: leaveType,
       start_date: startDate,
       end_date: endDate,
       reason: reason.trim(),
-      file_urls: finalAttachments,
+      files,
       created_by: user.id,
     });
 
@@ -293,13 +274,21 @@ export const LeaveForm: React.FC = () => {
                 Mata Kuliah
               </label>
               <select
-                value={selectedCourseId}
+                value={effectiveCourseId}
                 onChange={(e) => setSelectedCourseId(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-black/30 border border-slate-300/80 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
               >
-                {courses.map((c) => (
+                {courseOptions.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.code} — {c.name} ({c.day_of_week}, {c.start_time}-{c.end_time}) • {c.lecturer_name}
+                    {[
+                      `${c.code} — ${c.name}`,
+                      c.day_of_week && c.start_time && c.end_time
+                        ? `(${c.day_of_week}, ${c.start_time.slice(0, 5)}-${c.end_time.slice(0, 5)})`
+                        : null,
+                      c.lecturer_name ? `• ${c.lecturer_name}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                   </option>
                 ))}
               </select>
@@ -310,8 +299,8 @@ export const LeaveForm: React.FC = () => {
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
                 Kategori Perizinan
               </label>
-              <div className="grid grid-cols-3 gap-2.5">
-                {(['sakit', 'izin', 'acara'] as LeaveType[]).map((type) => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {LEAVE_TYPES.map((type) => (
                   <button
                     key={type}
                     type="button"
@@ -323,10 +312,10 @@ export const LeaveForm: React.FC = () => {
                     }`}
                   >
                     <span className="text-base">
-                      {type === 'sakit' ? '🏥' : type === 'izin' ? '📄' : '🏆'}
+                      {LEAVE_TYPE_META[type].emoji}
                     </span>
-                    <span className="capitalize text-[11px]">
-                      {type === 'sakit' ? 'Sakit' : type === 'izin' ? 'Izin Pribadi' : 'Tugas / Lomba'}
+                    <span className="text-[11px]">
+                      {LEAVE_TYPE_META[type].label}
                     </span>
                   </button>
                 ))}
@@ -355,7 +344,7 @@ export const LeaveForm: React.FC = () => {
                     value={startDate}
                     onChange={(e) => {
                       setStartDate(e.target.value);
-                      if (new Date(e.target.value) > new Date(endDate)) {
+                      if (e.target.value > endDate) {
                         setEndDate(e.target.value);
                       }
                     }}
@@ -398,7 +387,9 @@ export const LeaveForm: React.FC = () => {
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                 <span>Lampiran Berkas Bukti (Surat Dokter / Dokumen PDF)</span>
-                <span className="text-[10px] text-slate-400 font-mono">Maks. 5MB</span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {LEAVE_TYPE_META[leaveType].requiresAttachment ? 'Wajib • ' : 'Opsional • '}Maks. 5MB
+                </span>
               </label>
 
               <div className="relative border-2 border-dashed border-slate-300/80 dark:border-white/10 hover:border-blue-500/50 rounded-2xl p-6 text-center bg-slate-50/50 dark:bg-black/20 transition-all duration-200 group cursor-pointer">
@@ -422,21 +413,34 @@ export const LeaveForm: React.FC = () => {
                 </div>
               </div>
 
+              {fileErrors.length > 0 && (
+                <ul className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-xl text-rose-800 dark:text-rose-300 text-[11px] space-y-1">
+                  {fileErrors.map((err, i) => (
+                    <li key={`${i}-${err}`} className="flex items-start gap-2">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-500" />
+                      <span>{err}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
               {/* Uploaded File List */}
-              {attachments.length > 0 && (
+              {files.length > 0 && (
                 <div className="space-y-2 pt-2">
-                  {attachments.map((att, idx) => (
+                  {files.map((att, idx) => (
                     <div
-                      key={idx}
+                      key={`${att.name}-${att.size}-${idx}`}
                       className="flex items-center justify-between px-3.5 py-2.5 bg-slate-100/90 dark:bg-white/[0.04] rounded-xl border border-slate-200/80 dark:border-white/5 text-xs"
                     >
                       <div className="flex items-center gap-2.5 truncate">
                         <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
                         <span className="text-slate-800 dark:text-slate-200 truncate">{att.name}</span>
+                        <span className="text-[10px] text-slate-400 font-mono shrink-0">{formatFileSize(att.size)}</span>
                       </div>
                       <button
                         type="button"
                         onClick={() => removeAttachment(idx)}
+                        aria-label={`Hapus ${att.name}`}
                         className="p-1 text-slate-400 hover:text-rose-600 transition"
                       >
                         <X className="w-4 h-4" />

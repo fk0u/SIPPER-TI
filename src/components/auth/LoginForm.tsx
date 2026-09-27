@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuthStore, isDemoMode } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
-import { SpotlightCard } from '@/components/reactbits/SpotlightCard';
 import { ShinyText } from '@/components/reactbits/ShinyText';
 import {
   Lock,
@@ -15,27 +14,48 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  ShieldCheck,
-  Check,
 } from 'lucide-react';
 
-export const LoginForm: React.FC = () => {
+interface LoginFormProps {
+  nextPath?: string;
+  initialError?: string | null;
+}
+
+export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialError = null }) => {
   const router = useRouter();
-  const { loginWithGoogle, loginWithNIM, error, clearError, isLoading, switchUser, profiles } =
-    useAuthStore();
+  const {
+    loginWithGoogle,
+    loginWithNIM,
+    error,
+    clearError,
+    isLoading,
+    switchUser,
+    profiles,
+    isAuthenticated,
+    isReady,
+  } = useAuthStore();
+  const demo = isDemoMode();
 
   const [nim, setNim] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(initialError);
+
+  // Sudah masuk → langsung ke tujuan
+  useEffect(() => {
+    if (isReady && isAuthenticated) router.replace(nextPath);
+  }, [isReady, isAuthenticated, nextPath, router]);
 
   const handleGoogleLogin = async () => {
     setLocalError(null);
     clearError();
-    const res = await loginWithGoogle();
+    const res = await loginWithGoogle(nextPath);
     if (res.success) {
-      toast.success('Login SSO Kampus berhasil!');
-      router.push('/');
+      // Mode live: browser dialihkan ke Google; mode demo: langsung masuk
+      if (demo) {
+        toast.success('Login SSO Kampus berhasil!');
+        router.push(nextPath);
+      }
     } else {
       toast.error('Gagal masuk dengan akun Google Kampus.');
     }
@@ -59,7 +79,7 @@ export const LoginForm: React.FC = () => {
     const res = await loginWithNIM(nim, password);
     if (res.success) {
       toast.success('Berhasil masuk dengan NIM!');
-      router.push('/');
+      router.push(nextPath);
     } else {
       toast.error('NIM atau kata sandi tidak cocok.');
     }
@@ -69,7 +89,7 @@ export const LoginForm: React.FC = () => {
     switchUser(userId);
     const target = profiles.find((p) => p.id === userId);
     toast.success(`Beralih ke profil demo: ${target?.full_name || 'Demo'}!`);
-    router.push('/');
+    router.push(nextPath);
   };
 
   return (
@@ -203,7 +223,8 @@ export const LoginForm: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Demo Switcher Cards */}
+      {/* Quick Demo Switcher Cards (mode demo saja) */}
+      {demo && (
       <div className="liquid-glass rounded-2xl p-4 space-y-2.5 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -254,6 +275,7 @@ export const LoginForm: React.FC = () => {
         </div>
       </div>
 
+      )}
     </div>
   );
 };

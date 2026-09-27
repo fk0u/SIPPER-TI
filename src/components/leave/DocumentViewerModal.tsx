@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { LeaveAttachment } from '@/types/database';
-import { X, ExternalLink, FileText, Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLeaveStore } from '@/store/useLeaveStore';
+import { isDemoMode } from '@/store/useAuthStore';
+import { formatFileSize } from '@/lib/attachments';
+import { X, ExternalLink, FileText, Download, ZoomIn, ZoomOut, Loader2, EyeOff } from 'lucide-react';
 
 interface DocumentViewerModalProps {
   isOpen: boolean;
@@ -19,6 +22,28 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
+  const resolveAttachments = useLeaveStore((st) => st.resolveAttachments);
+  const [resolved, setResolved] = useState<{ source: LeaveAttachment[]; files: LeaveAttachment[] } | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
+  // Mode live: lampiran disimpan privat, minta signed URL sementara saat modal dibuka.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    resolveAttachments(attachments)
+      .then((files) => {
+        if (!cancelled) {
+          setResolved({ source: attachments, files });
+          setResolveError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setResolveError(err instanceof Error ? err.message : 'Gagal memuat lampiran.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, attachments, resolveAttachments]);
 
   // Keyboard shortcut support (Escape to close, Arrows to paginate)
   useEffect(() => {
@@ -40,7 +65,10 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
   if (!isOpen || attachments.length === 0) return null;
 
-  const currentFile = attachments[selectedIndex] || attachments[0];
+  const files = resolved?.source === attachments ? resolved.files : attachments;
+  const isResolving = resolved?.source !== attachments && !resolveError;
+  const currentFile = files[selectedIndex] || files[0];
+  const hasPreview = Boolean(currentFile.url) && !isResolving;
   const isPdf = currentFile.name.toLowerCase().endsWith('.pdf') || currentFile.type.includes('pdf');
 
   return (
@@ -58,7 +86,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                 {title}
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate font-mono">
-                {currentFile.name} • {currentFile.size ? `${(currentFile.size / 1024).toFixed(0)} KB` : 'Lampiran'}
+                {currentFile.name} • {currentFile.size ? formatFileSize(currentFile.size) : 'Lampiran'}
               </p>
             </div>
           </div>
@@ -73,6 +101,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                 {isZoomed ? <ZoomOut className="w-4 h-4" /> : <ZoomIn className="w-4 h-4" />}
               </button>
             )}
+            {hasPreview && (
             <a
               href={currentFile.url}
               target="_blank"
@@ -82,6 +111,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             >
               <ExternalLink className="w-4 h-4" />
             </a>
+            )}
             <button
               onClick={onClose}
               className="p-2 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 transition"
@@ -94,7 +124,21 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
         {/* Content Viewport */}
         <div className="relative flex-1 overflow-auto p-4 bg-slate-100/50 dark:bg-black/40 flex items-center justify-center min-h-[320px] max-h-[70vh]">
-          {isPdf ? (
+          {isResolving ? (
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <Loader2 className="w-4 h-4 animate-spin" /> Memuat lampiran aman...
+            </div>
+          ) : !hasPreview ? (
+            <div className="flex flex-col items-center gap-2 text-center text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+              <EyeOff className="w-6 h-6" />
+              <span>
+                {resolveError ??
+                  (isDemoMode()
+                    ? 'Pratinjau tidak tersedia. Pada mode demo, berkas berukuran besar hanya disimpan metadatanya.'
+                    : 'Berkas lampiran tidak ditemukan di penyimpanan. Minta pengaju mengunggah ulang lampirannya.')}
+              </span>
+            </div>
+          ) : isPdf ? (
             <div className="w-full h-full min-h-[360px] flex flex-col items-center justify-center text-center p-6 bg-white dark:bg-black/30 rounded-2xl border border-slate-200/80 dark:border-white/5">
               <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center mb-3">
                 <FileText className="w-8 h-8 text-rose-500" />
@@ -116,6 +160,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             </div>
           ) : (
             <div className={`transition-transform duration-200 ${isZoomed ? 'scale-125 cursor-zoom-out' : 'cursor-zoom-in'}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- signed URL / data URL dinamis */}
               <img
                 src={currentFile.url}
                 alt={currentFile.name}
@@ -127,13 +172,13 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         </div>
 
         {/* Multi-file switcher footer */}
-        {attachments.length > 1 && (
+        {files.length > 1 && (
           <div className="px-4 sm:px-6 py-2.5 border-t border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-black/30 flex items-center justify-between gap-2 overflow-x-auto">
             <span className="text-[10px] font-mono text-slate-500">
-              Lampiran {selectedIndex + 1} dari {attachments.length}
+              Lampiran {selectedIndex + 1} dari {files.length}
             </span>
             <div className="flex items-center gap-1.5">
-              {attachments.map((file, idx) => (
+              {files.map((file, idx) => (
                 <button
                   key={idx}
                   onClick={() => {

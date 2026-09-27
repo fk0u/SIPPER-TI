@@ -1,43 +1,51 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useLeaveStore } from '@/store/useLeaveStore';
-import { DocumentViewerModal } from '@/components/leave/DocumentViewerModal';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { CountUp } from '@/components/reactbits/CountUp';
-import { LeaveAttachment } from '@/types/database';
+import type { LecturerRecapResult } from '@/types/database';
+import { diffDaysInclusive, isDateInRange } from '@/lib/date';
+import { LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import {
   GraduationCap,
   Calendar,
-  BookOpen,
   Printer,
   Search,
-  CheckCircle,
-  FileText,
   AlertTriangle,
-  Eye,
   X,
-  Building2,
-  Clock,
 } from 'lucide-react';
 
 interface GuestLecturerViewProps {
-  tokenString: string;
+  recap: LecturerRecapResult;
+  /** Mode demo: data berasal dari browser pembuat tautan. */
+  demo?: boolean;
 }
 
-export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ tokenString }) => {
-  const { lecturerTokens, requests, courses } = useLeaveStore();
+const INVALID_MESSAGES = {
+  not_found: {
+    title: 'Tautan Akses Dosen Tidak Valid',
+    body: 'Token akses publik ini tidak terdaftar di sistem.',
+  },
+  expired: {
+    title: 'Tautan Akses Dosen Kedaluwarsa',
+    body: 'Masa berlaku tautan ini telah habis.',
+  },
+  revoked: {
+    title: 'Tautan Akses Dosen Telah Dicabut',
+    body: 'Tautan ini telah dinonaktifkan oleh Ketua Kelas.',
+  },
+  unavailable: {
+    title: 'Rekap Sementara Tidak Dapat Dimuat',
+    body: 'Terjadi gangguan layanan. Tautan Anda kemungkinan masih berlaku — silakan muat ulang beberapa saat lagi.',
+  },
+} as const;
 
+export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ recap, demo = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
-  const [activeModalFiles, setActiveModalFiles] = useState<LeaveAttachment[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalTitle, setModalTitle] = useState('');
 
-  // Find token
-  const tokenData = lecturerTokens.find((t) => t.token === tokenString);
-
-  if (!tokenData) {
+  if (recap.status !== 'ok') {
+    const msg = INVALID_MESSAGES[recap.status];
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-4">
         <div className="doppelrand-shell max-w-md w-full">
@@ -45,59 +53,45 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ tokenStrin
             <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-7 h-7" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Tautan Akses Dosen Tidak Valid
-            </h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{msg.title}</h2>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Token akses publik ini tidak terdaftar di sistem atau telah kedaluwarsa.
-              Silakan hubungi Sipen mata kuliah atau KM Kelas Internasional untuk mendapatkan tautan baru.
+              {msg.body}
+              {recap.status === 'unavailable'
+                ? ' Jika masalah berlanjut, hubungi KM Kelas Internasional.'
+                : ' Silakan hubungi KM Kelas Internasional untuk mendapatkan tautan baru.'}
             </p>
-            <div className="p-3 bg-slate-100 dark:bg-black/30 rounded-xl border border-slate-200 dark:border-white/5 text-[11px] font-mono text-slate-500">
-              Token: {tokenString}
-            </div>
+            {demo && (
+              <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                Mode demo: tautan hanya dapat dibuka di browser tempat tautan dibuat.
+              </p>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
-  const assignedCourse = tokenData.course_id
-    ? courses.find((c) => c.id === tokenData.course_id)
+  const assignedCourse = recap.token.course_id
+    ? recap.courses.find((c) => c.id === recap.token.course_id) ?? null
     : null;
+  const courseById = new Map(recap.courses.map((c) => [c.id, c]));
 
-  const courseRequests = requests.filter((r) => {
-    if (assignedCourse && r.course_id !== assignedCourse.id) return false;
-    return true;
-  });
-
-  const approvedLeaves = courseRequests.filter((r) => r.status === 'approved');
+  const approvedLeaves = recap.leaves;
   const sickCount = approvedLeaves.filter((r) => r.leave_type === 'sakit').length;
-  const eventCount = approvedLeaves.filter((r) => r.leave_type === 'acara' || r.leave_type === 'izin').length;
-  const pendingCount = courseRequests.filter((r) => r.status === 'pending').length;
+  const eventCount = approvedLeaves.filter((r) => r.leave_type !== 'sakit').length;
+  const studentCount = new Set(approvedLeaves.map((r) => r.student_nim)).size;
 
-  const displayedLeaves = courseRequests.filter((r) => {
-    if (selectedDate) {
-      if (r.start_date > selectedDate || r.end_date < selectedDate) return false;
-    }
+  const displayedLeaves = approvedLeaves.filter((r) => {
+    if (selectedDate && !isDateInRange(selectedDate, r.start_date, r.end_date)) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      return (
-        r.student.full_name.toLowerCase().includes(q) ||
-        r.student.nim.toLowerCase().includes(q) ||
-        r.reason.toLowerCase().includes(q)
-      );
+      return r.student_name.toLowerCase().includes(q) || r.student_nim.toLowerCase().includes(q);
     }
     return true;
   });
 
   const handlePrint = () => {
     window.print();
-  };
-
-  const openViewer = (files: LeaveAttachment[], studentName: string) => {
-    setActiveModalFiles(files);
-    setModalTitle(`Bukti Surat Keterangan — ${studentName}`);
-    setIsModalOpen(true);
   };
 
   return (
@@ -143,15 +137,17 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ tokenStrin
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div className="bg-slate-100/70 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-mono uppercase font-semibold">Jadwal Kuliah</span>
-                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.day_of_week}</span>
+                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.day_of_week ?? '-'}</span>
               </div>
               <div className="bg-slate-100/70 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-mono uppercase font-semibold">Waktu Sesi</span>
-                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.start_time} - {assignedCourse.end_time} WITA</span>
+                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.start_time && assignedCourse.end_time
+                    ? `${assignedCourse.start_time.slice(0, 5)} - ${assignedCourse.end_time.slice(0, 5)} WITA`
+                    : '-'}</span>
               </div>
               <div className="bg-slate-100/70 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-mono uppercase font-semibold">Ruang Kelas</span>
-                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.room}</span>
+                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.room ?? '-'}</span>
               </div>
               <div className="bg-slate-100/70 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-mono uppercase font-semibold">Semester Aktif</span>
@@ -176,7 +172,7 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ tokenStrin
 
         <div className="bg-white/90 dark:bg-[#0b0f19]/80 border border-slate-200/80 dark:border-white/10 p-4 rounded-2xl shadow-sm">
           <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1 font-mono uppercase text-[10px] font-semibold">
-            Dispensasi Acara
+            Izin / Dispensasi
           </span>
           <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-purple-600 dark:text-purple-400">
             <CountUp to={eventCount} duration={0.8} />
@@ -186,12 +182,12 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ tokenStrin
 
         <div className="bg-white/90 dark:bg-[#0b0f19]/80 border border-slate-200/80 dark:border-white/10 p-4 rounded-2xl shadow-sm">
           <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1 font-mono uppercase text-[10px] font-semibold">
-            Dalam Review
+            Mahasiswa
           </span>
           <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-amber-600 dark:text-amber-400">
-            <CountUp to={pendingCount} duration={0.8} />
+            <CountUp to={studentCount} duration={0.8} />
           </span>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">Menunggu validasi</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">Memiliki izin sah</span>
         </div>
       </div>
 
@@ -245,10 +241,10 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ tokenStrin
                 <tr>
                   <th className="py-3.5 px-4">Mahasiswa</th>
                   <th className="py-3.5 px-4">Kategori</th>
+                  {!assignedCourse && <th className="py-3.5 px-4">Mata Kuliah</th>}
                   <th className="py-3.5 px-4">Tanggal Izin</th>
-                  <th className="py-3.5 px-4">Alasan</th>
+                  <th className="py-3.5 px-4">Durasi</th>
                   <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-center print:hidden">Berkas</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/70 dark:divide-white/5">
@@ -259,61 +255,37 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ tokenStrin
                   >
                     <td className="py-3.5 px-4">
                       <span className="font-semibold text-slate-900 dark:text-white block">
-                        {req.student.full_name}
+                        {req.student_name}
                       </span>
                       <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                        {req.student.nim}
+                        {req.student_nim}
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-md font-semibold text-[9px] uppercase font-mono tracking-wider ${
-                          req.leave_type === 'sakit'
-                            ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/25'
-                            : req.leave_type === 'acara'
-                            ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/25'
-                            : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/25'
+                        className={`inline-block px-2 py-0.5 rounded-md font-semibold text-[9px] uppercase font-mono tracking-wider border ${
+                          LEAVE_TYPE_META[req.leave_type]?.badge ?? ''
                         }`}
                       >
-                        {req.leave_type}
+                        {LEAVE_TYPE_META[req.leave_type]?.short ?? req.leave_type}
                       </span>
                     </td>
+                    {!assignedCourse && (
+                      <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300 font-mono text-[11px]">
+                        {courseById.get(req.course_id)?.code ?? '-'}
+                      </td>
+                    )}
                     <td className="py-3.5 px-4 font-mono text-slate-700 dark:text-slate-300">
                       {req.start_date}
                       {req.start_date !== req.end_date && ` s/d ${req.end_date}`}
                     </td>
-                    <td className="py-3.5 px-4 max-w-xs text-slate-600 dark:text-slate-300">
-                      <span className="line-clamp-2 italic">&ldquo;{req.reason}&rdquo;</span>
+                    <td className="py-3.5 px-4 font-mono text-slate-700 dark:text-slate-300">
+                      {diffDaysInclusive(req.start_date, req.end_date)} hari
                     </td>
                     <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-mono font-semibold uppercase ${
-                          req.status === 'approved'
-                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25'
-                            : req.status === 'rejected'
-                            ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/25'
-                            : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25'
-                        }`}
-                      >
-                        {req.status === 'approved'
-                          ? 'Disetujui'
-                          : req.status === 'rejected'
-                          ? 'Ditolak'
-                          : 'Pending'}
+                      <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-mono font-semibold uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
+                        Disetujui
                       </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-center print:hidden">
-                      {req.file_urls && req.file_urls.length > 0 ? (
-                        <button
-                          onClick={() => openViewer(req.file_urls, req.student.full_name)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100/80 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-800/40 text-[11px] font-medium transition active:scale-95"
-                          title="Lihat Surat Keterangan"
-                        >
-                          <Eye className="w-3 h-3" /> Lihat ({req.file_urls.length})
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 italic text-[11px]">-</span>
-                      )}
                     </td>
                   </tr>
                 ))}
@@ -329,13 +301,9 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ tokenStrin
         </div>
       </div>
 
-      {/* Document Viewer Modal */}
-      <DocumentViewerModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        attachments={activeModalFiles}
-        title={modalTitle}
-      />
+      <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center">
+        Hanya menampilkan izin yang telah diverifikasi Sipen / KM. Alasan & berkas bukti bersifat rahasia dan tidak dibagikan melalui tautan tamu.
+      </p>
 
     </div>
   );

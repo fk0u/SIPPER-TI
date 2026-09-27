@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build (mode demo)
+        run: npm run build
+      - name: E2E mode demo (Playwright)
+        timeout-minutes: 10
+        run: |
+          npx playwright install --with-deps chromium
+          PORT=3100 npm run start > /tmp/next.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          # Skrip E2E menunggu server siap sendiri (maks. 120 dtk)
+          E2E_BASE_URL=http://localhost:3100 npm run test:e2e || { cat /tmp/next.log; exit 1; }
+      - name: Build (mode live)
+        # Memastikan jalur live (proxy, callback, RPC dosen) ikut dikompilasi & diprerender.
+        # Nilai placeholder; tidak ada koneksi ke Supabase saat build.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+        run: npm run build
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16.4
+        env:
+          # Database uji sementara di CI; tanpa password (hanya dapat diakses dari runner).
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/test-rls.sh

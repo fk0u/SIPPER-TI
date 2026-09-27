@@ -2,13 +2,17 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuthStore, isDemoMode } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { LeaveCard } from '@/components/leave/LeaveCard';
 import { LeaveStatus } from '@/types/database';
 import { ShinyText } from '@/components/reactbits/ShinyText';
 import { CountUp } from '@/components/reactbits/CountUp';
 import { SpotlightCard } from '@/components/reactbits/SpotlightCard';
+import { PageLoader } from '@/components/auth/RequireRole';
+import { useHydrated } from '@/lib/useHydrated';
+import { dayNameID } from '@/lib/date';
+import { canViewRequest, canVerifyRequest, isSupervisor as isSupervisorRole } from '@/lib/permissions';
 import {
   Plus,
   CheckSquare,
@@ -21,18 +25,19 @@ import {
   Layers,
   Calendar,
   X,
-  Clock,
-  CheckCircle2,
-  FileText,
-  UserCheck,
 } from 'lucide-react';
 
-export default function HomePage() {
-  const { user, isAuthenticated } = useAuthStore();
-  const { requests, courses, resetToInitial } = useLeaveStore();
+type FeedTab = 'all' | 'my' | LeaveStatus;
 
-  const [activeTab, setActiveTab] = useState<'all' | 'my' | LeaveStatus>('all');
+export default function HomePage() {
+  const hydrated = useHydrated();
+  const { user, isAuthenticated, isReady } = useAuthStore();
+  const { requests: allRequests, courses, courseSipen, isLoaded, loadError, resetToInitial } = useLeaveStore();
+
+  const [activeTab, setActiveTab] = useState<FeedTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  if (!hydrated || !isReady) return <PageLoader />;
 
   if (!isAuthenticated || !user) {
     return (
@@ -65,6 +70,11 @@ export default function HomePage() {
     );
   }
 
+  if (!isLoaded) return <PageLoader label="Memuat data perizinan..." />;
+
+  // Mahasiswa hanya melihat izin miliknya; Sipen sesuai mata kuliahnya; KM semua.
+  const requests = allRequests.filter((r) => canViewRequest(user, r, courseSipen));
+
   // Filter requests
   const filteredRequests = requests.filter((req) => {
     if (activeTab === 'my') {
@@ -90,8 +100,11 @@ export default function HomePage() {
   ).length;
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
   const approvedCount = requests.filter((r) => r.status === 'approved').length;
+  const toReviewCount = requests.filter((r) => canVerifyRequest(user, r, courseSipen)).length;
 
-  const isSupervisor = user.role === 'km' || user.role === 'sipen';
+  const isSupervisor = isSupervisorRole(user);
+  const today = dayNameID();
+  const todaysCourses = courses.filter((c) => c.day_of_week === today);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -145,10 +158,11 @@ export default function HomePage() {
                   className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/80 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 text-xs font-semibold transition active:scale-95 flex-1 sm:flex-initial"
                 >
                   <CheckSquare className="w-4 h-4 shrink-0" />
-                  <span>Review Izin ({pendingCount})</span>
+                  <span>Review Izin ({toReviewCount})</span>
                 </Link>
               )}
 
+{isSupervisor && (
               <Link
                 href="/admin/tokens"
                 className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/80 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-purple-700 dark:text-purple-400 border border-purple-500/25 text-xs font-semibold transition active:scale-95 flex-1 sm:flex-initial"
@@ -157,6 +171,7 @@ export default function HomePage() {
                 <KeyRound className="w-4 h-4 shrink-0" />
                 <span>Link Dosen</span>
               </Link>
+              )}
             </div>
 
           </div>
@@ -209,14 +224,27 @@ export default function HomePage() {
             <div className="bg-slate-100/80 dark:bg-black/30 p-3.5 rounded-xl border border-slate-200/80 dark:border-white/5 text-xs space-y-1">
               <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono font-semibold">
                 <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                <span>Jadwal Kuliah Hari Ini:</span>
+                <span>Jadwal Kuliah Hari Ini ({today}):</span>
               </div>
-              <span className="text-slate-900 dark:text-white font-semibold block truncate">
-                {courses[0]?.code} — {courses[0]?.name}
-              </span>
-              <span className="text-slate-500 dark:text-slate-400 text-[11px] block truncate">
-                {courses[0]?.lecturer_name}
-              </span>
+              {todaysCourses.length > 0 ? (
+                todaysCourses.map((c) => (
+                  <div key={c.id}>
+                    <span className="text-slate-900 dark:text-white font-semibold block truncate">
+                      {c.code} — {c.name}
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px] block truncate">
+                      {[
+                        c.start_time && c.end_time ? `${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)}` : null,
+                        c.lecturer_name,
+                      ]
+                        .filter(Boolean)
+                        .join(' • ') || 'Jadwal belum diatur'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <span className="text-slate-500 dark:text-slate-400 block">Tidak ada jadwal kuliah hari ini.</span>
+              )}
             </div>
           </SpotlightCard>
         </div>
@@ -233,16 +261,16 @@ export default function HomePage() {
           
           {/* Segmented Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-            {[
-              { id: 'all', label: 'Semua Izin' },
+            {([
+              { id: 'all', label: isSupervisor ? 'Semua Izin' : 'Riwayat Izin' },
               { id: 'my', label: `Izin Saya (${myRequestsCount})` },
               { id: 'pending', label: `Menunggu (${pendingCount})` },
               { id: 'approved', label: 'Disetujui' },
               { id: 'rejected', label: 'Ditolak' },
-            ].map((tab) => (
+            ] satisfies { id: FeedTab; label: string }[]).map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap active:scale-95 ${
                   activeTab === tab.id
                     ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20'
@@ -275,6 +303,7 @@ export default function HomePage() {
               )}
             </div>
 
+{isDemoMode() && (
             <button
               onClick={resetToInitial}
               title="Reset data demo ke kondisi awal"
@@ -282,9 +311,16 @@ export default function HomePage() {
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
+            )}
           </div>
 
         </div>
+
+        {loadError && (
+          <div className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-xl text-rose-800 dark:text-rose-300 text-xs">
+            Data perizinan gagal dimuat. Periksa koneksi lalu muat ulang halaman; hubungi KM bila masalah berlanjut.
+          </div>
+        )}
 
         {/* Requests Feed */}
         {filteredRequests.length > 0 ? (

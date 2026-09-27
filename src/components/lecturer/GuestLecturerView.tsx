@@ -56,8 +56,9 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ recap, dem
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">{msg.title}</h2>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               {msg.body}
-              {recap.status !== 'unavailable' &&
-                ' Silakan hubungi KM Kelas Internasional untuk mendapatkan tautan baru.'}
+              {recap.status === 'unavailable'
+                ? ' Jika masalah berlanjut, hubungi KM Kelas Internasional.'
+                : ' Silakan hubungi KM Kelas Internasional untuk mendapatkan tautan baru.'}
             </p>
             {demo && (
               <p className="text-[11px] text-amber-700 dark:text-amber-400">

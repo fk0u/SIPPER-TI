@@ -40,10 +40,13 @@ if [ "$status" -ne 0 ]; then
   exit 1
 fi
 
+# Jumlah assertion yang diharapkan dihitung dari file uji, sehingga eksekusi yang
+# terpotong (lebih sedikit PASS) tetap dianggap gagal.
+expected=$(grep -cE "^SELECT pg_temp\.expect_(rows|error|value)\(" supabase/tests/rls_test.sql)
 pass=$(grep -c '^PASS ' <<<"$OUT" || true)
 fail=$(grep -c '^FAIL ' <<<"$OUT" || true)
-echo "== $pass lulus, $fail gagal"
-if [ "$fail" -ne 0 ] || [ "$pass" -eq 0 ]; then
+echo "== $pass lulus, $fail gagal (diharapkan $expected)"
+if [ "$fail" -ne 0 ] || [ "$pass" -ne "$expected" ]; then
   echo "RLS tests failed" >&2
   exit 1
 fi

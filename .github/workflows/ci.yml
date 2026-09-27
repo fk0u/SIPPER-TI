@@ -26,11 +26,16 @@ jobs:
       - name: Build (mode demo)
         run: npm run build
       - name: E2E mode demo (Playwright)
+        timeout-minutes: 10
         run: |
           npx playwright install --with-deps chromium
           PORT=3100 npm run start > /tmp/next.log 2>&1 &
-          npx --yes wait-on@8 http://localhost:3100/login
-          E2E_BASE_URL=http://localhost:3100 npm run test:e2e
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          if ! npx --yes wait-on@8 --timeout 120000 http://localhost:3100/login; then
+            echo "Server tidak siap:"; cat /tmp/next.log; exit 1
+          fi
+          E2E_BASE_URL=http://localhost:3100 npm run test:e2e || { cat /tmp/next.log; exit 1; }
       - name: Build (mode live)
         # Memastikan jalur live (proxy, callback, RPC dosen) ikut dikompilasi & diprerender.
         # Nilai placeholder; tidak ada koneksi ke Supabase saat build.

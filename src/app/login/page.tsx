@@ -9,6 +9,7 @@ export const metadata = {
 const ERROR_MESSAGES: Record<string, string> = {
   domain: 'Registrasi dibatasi hanya untuk akun civitas akademika UMKT (@umkt.ac.id).',
   auth_callback_failed: 'Login dengan akun kampus gagal. Silakan coba lagi.',
+  profile_unavailable: 'Profil akun tidak dapat dimuat. Coba lagi beberapa saat, atau hubungi KM bila berlanjut.',
 };
 
 function errorMessageFor(error: string | string[] | undefined): string | null {

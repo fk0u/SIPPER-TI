@@ -12,7 +12,9 @@ export async function GET(request: Request) {
   // Supabase mengalihkan ke sini dengan error_description.
   const providerError = searchParams.get('error_description') ?? searchParams.get('error');
   if (providerError) {
-    const isDomainError = /umkt|database error saving new user/i.test(providerError);
+    // Hanya pesan eksplisit dari trigger handle_new_user yang dianggap penolakan domain;
+    // kegagalan database lain dilaporkan sebagai kegagalan login umum.
+    const isDomainError = /registrasi dibatasi/i.test(providerError);
     return NextResponse.redirect(`${origin}/login?error=${isDomainError ? 'domain' : 'auth_callback_failed'}`);
   }
 

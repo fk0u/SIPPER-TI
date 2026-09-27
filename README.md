@@ -125,6 +125,10 @@ npm run lint
 npm run typecheck
 npm test             # unit test (Vitest)
 npm run test:rls     # uji RLS di PostgreSQL (butuh PGHOST/PGUSER)
+# E2E mode demo (Playwright): butuh browser & server berjalan
+npx playwright install chromium
+npm run build && PORT=3100 npm run start &
+E2E_BASE_URL=http://localhost:3100 npm run test:e2e
 npm run build
 ```
 

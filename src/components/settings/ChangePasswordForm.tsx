@@ -6,7 +6,7 @@ import { KeyRound, AlertCircle, Lock } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
 
-export const ChangePasswordForm: React.FC = () => {
+export const ChangePasswordForm: React.FC<{ nextPath?: string }> = ({ nextPath = '/' }) => {
   const router = useRouter();
   const { changePassword, mustChangePassword, usesPassword } = useAuthStore();
   const [password, setPassword] = useState('');
@@ -32,7 +32,7 @@ export const ChangePasswordForm: React.FC = () => {
       return;
     }
     toast.success('Kata sandi berhasil diperbarui.');
-    router.replace('/');
+    router.replace(nextPath === '/settings/password' ? '/' : nextPath);
   };
 
   if (!usesPassword) {

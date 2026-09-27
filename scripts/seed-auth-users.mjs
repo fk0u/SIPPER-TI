@@ -53,6 +53,20 @@ function readRoster(path) {
 }
 
 const roster = process.argv[2] ? readRoster(process.argv[2]) : DEMO_ROSTER;
+
+// Tolak NIM / id ganda sebelum menyentuh database.
+for (const key of ['nim', 'id']) {
+  const seen = new Set();
+  for (const row of roster) {
+    const value = row[key];
+    if (!value) continue;
+    if (seen.has(value)) {
+      console.error(`Roster tidak valid: ${key} ganda "${value}".`);
+      process.exit(1);
+    }
+    seen.add(value);
+  }
+}
 const supabase = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
 let created = 0;
@@ -77,8 +91,20 @@ for (const { id, nim, full_name, role = 'mahasiswa' } of roster) {
     failed++;
     continue;
   }
-  if (error) existing++;
-  else created++;
+  if (error) {
+    // Akun sudah ada: pastikan id-nya sama dengan roster bila roster menetapkan id.
+    if (id) {
+      const { data: existingUser } = await supabase.auth.admin.getUserById(id);
+      if (existingUser?.user?.email !== `${nim}@umkt.ac.id`) {
+        console.error(`NIM ${nim} sudah terdaftar dengan id berbeda dari roster (${id}).`);
+        failed++;
+        continue;
+      }
+    }
+    existing++;
+  } else {
+    created++;
+  }
 
   // Selalu sinkronkan role dari roster — juga untuk akun yang sudah ada (roster berubah / percobaan sebelumnya gagal).
   const { data: updated, error: roleError } = await supabase

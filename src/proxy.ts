@@ -55,13 +55,18 @@ export async function proxy(request: NextRequest) {
   const rule = ROLE_RULES.find((r) => pathname.startsWith(r.prefix));
 
   if (rule || usesPassword) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .rpc('get_my_profile')
       .maybeSingle<{ role: string; is_password_changed: boolean }>();
 
+    // Gagal tertutup: tanpa profil, status password/role tidak dapat dipastikan.
+    if (profileError || !profile) {
+      return redirectTo('/login', { error: 'profile_unavailable' });
+    }
+
     // Akun NIM dengan password default wajib menggantinya sebelum mengakses halaman lain.
-    if (usesPassword && profile && !profile.is_password_changed && pathname !== PASSWORD_PAGE) {
-      return redirectTo(PASSWORD_PAGE);
+    if (usesPassword && !profile.is_password_changed && pathname !== PASSWORD_PAGE) {
+      return redirectTo(PASSWORD_PAGE, pathname === '/' ? undefined : { next: pathname });
     }
     if (rule && (!profile || !rule.roles.includes(profile.role))) {
       return redirectTo('/', { denied: '1' });

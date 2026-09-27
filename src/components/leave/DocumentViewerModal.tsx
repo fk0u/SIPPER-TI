@@ -135,7 +135,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                 {resolveError ??
                   (isDemoMode()
                     ? 'Pratinjau tidak tersedia. Pada mode demo, berkas berukuran besar hanya disimpan metadatanya.'
-                    : 'Pratinjau berkas tidak dapat dimuat. Coba tutup dan buka kembali.')}
+                    : 'Berkas lampiran tidak ditemukan di penyimpanan. Minta pengaju mengunggah ulang lampirannya.')}
               </span>
             </div>
           ) : isPdf ? (

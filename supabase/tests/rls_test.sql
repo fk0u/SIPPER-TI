@@ -90,6 +90,8 @@ SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
 
 SELECT pg_temp.expect_error('mahasiswa ubah role sendiri',
     $q$UPDATE profiles SET role = 'km' WHERE id = auth.uid()$q$, 'administrator');
+SELECT pg_temp.expect_error('GUC palsu tidak membuka kunci role',
+    $q$SELECT set_config('sipper.trusted_update', 'on', false); UPDATE profiles SET role = 'km' WHERE id = auth.uid()$q$, 'administrator');
 SELECT pg_temp.expect_error('mahasiswa set is_password_changed sendiri',
     $q$UPDATE profiles SET is_password_changed = true WHERE id = auth.uid()$q$, 'sistem');
 SELECT pg_temp.expect_rows('mahasiswa ubah telepon sendiri',
@@ -226,3 +228,5 @@ SELECT pg_temp.act_as(NULL);
 SELECT pg_temp.expect_value('status akhir izin',
     $q$SELECT string_agg(status::text || ':' || (verified_by IS NOT NULL)::text, ',' ORDER BY id) FROM leave_requests$q$,
     'approved:true,pending:false,approved:true');
+SELECT pg_temp.expect_value('bucket lama leave-attachments privat',
+    $q$SELECT public::text FROM storage.buckets WHERE id = 'leave-attachments'$q$, 'false');

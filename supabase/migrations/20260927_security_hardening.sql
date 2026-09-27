@@ -124,7 +124,9 @@ BEGIN
     -- service_role (backend admin) dan koneksi tanpa JWT (SQL editor / migrasi) boleh mengubah semuanya
     IF auth.uid() IS NULL
        OR COALESCE(auth.jwt() ->> 'role', '') = 'service_role'
-       OR current_setting('sipper.trusted_update', true) = 'on' THEN
+       -- Fungsi SECURITY DEFINER milik sistem (mis. handle_password_changed) berjalan sebagai
+       -- pemiliknya, bukan sebagai role klien. GUC tidak dipakai karena dapat di-set sesi mana pun.
+       OR current_user NOT IN ('authenticated', 'anon') THEN
         RETURN NEW;
     END IF;
 
@@ -332,6 +334,10 @@ GRANT EXECUTE ON FUNCTION public.get_lecturer_recap(TEXT) TO anon, authenticated
 -- ============================================================================
 -- 6. STORAGE: bucket privat, upload per folder user, baca sesuai hak akses izin
 -- ============================================================================
+-- Bucket lama dari skema awal: jadikan privat agar objek lama tidak lagi dapat diunduh publik.
+-- (Tidak ada policy baca untuknya lagi; objek lama hanya dapat diakses service role.)
+UPDATE storage.buckets SET public = false WHERE id = 'leave-attachments';
+
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('permit-proofs', 'permit-proofs', false, 5242880,
         ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
@@ -435,9 +441,7 @@ RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
     IF NEW.encrypted_password IS DISTINCT FROM OLD.encrypted_password THEN
-        PERFORM set_config('sipper.trusted_update', 'on', true);
         UPDATE public.profiles SET is_password_changed = TRUE WHERE id = NEW.id;
-        PERFORM set_config('sipper.trusted_update', 'off', true);
     END IF;
     RETURN NEW;
 END;

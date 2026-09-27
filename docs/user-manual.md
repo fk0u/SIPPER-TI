@@ -70,7 +70,8 @@ Bila ada teman sekelas yang sakit parah/mengalami kecelakaan dan tidak dapat men
 ## 🎓 5. PANDUAN GUEST ACCESS UNTUK DOSEN PENGAMPU
 
 Dosen pengampu tidak perlu menghafal password atau membuat akun:
-1. Sipen atau KM akan mengirimkan link khusus via WhatsApp (contoh: `https://sipper-ti.umkt.ac.id/lecturer/demo-dosen-hendra-2026`).
+1. Ketua Kelas (KM) akan mengirimkan link khusus via WhatsApp (contoh: `https://sipper-ti.umkt.ac.id/lecturer/demo-dosen-hendra-2026`).
 2. Klik link tersebut di ponsel atau laptop.
 3. Rekap presensi dan daftar mahasiswa yang izin hari ini akan tampil secara langsung.
-4. Dosen dapat mengklik nama mahasiswa untuk melihat lampiran surat dokter atau menekan tombol **"Cetak Rekap Presensi"** untuk arsip akademik.
+4. Rekap hanya menampilkan izin yang **sudah disetujui** (nama, NIM, kategori, tanggal, durasi). Alasan dan berkas bukti bersifat rahasia dan tidak ditampilkan pada tautan tamu. Tekan **"Cetak Rekap"** untuk arsip akademik.
+5. Tautan berlaku 180 hari dan dapat dicabut KM kapan saja.

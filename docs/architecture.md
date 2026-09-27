@@ -5,19 +5,27 @@ SIPPER-TI dirancang dengan arsitektur modern Next.js 16 App Router (Turbopack) y
 
 ```mermaid
 graph TD
-    A[Pengguna Mahasiswa / Sipen / KM] -->|Akses Web / Mobile| B[Next.js 16 App Router]
-    C[Dosen Pengampu] -->|Akses Link Tamu / Guest Token| D[/lecturer/:token]
-    
-    B --> E[Zustand Client Stores]
-    E --> F[useAuthStore: Multi-role & Session]
-    E --> G[useLeaveStore: Requests & Tokens]
-    
-    E -.->|Optional Live Mode| H[(Supabase PostgreSQL / SSR)]
-    
-    B --> I[Responsive Layout Engine]
-    I -->|Viewport Desktop| J[Desktop Top Navbar]
-    I -->|Viewport Mobile| K[Mobile App Bar + Bottom Tab Dock]
+    A[Mahasiswa / Sipen / KM] -->|Browser| P[src/proxy.ts<br/>refresh sesi + guard rute]
+    P --> B[Next.js 16 App Router]
+    C[Dosen Pengampu] -->|/lecturer/:token| L[Server Component]
+    L -->|RPC get_lecturer_recap anon| DB
+    B --> S[Zustand Stores]
+    S -->|mode demo| M[(mockData + localStorage)]
+    S -->|mode live| R[supabaseRepository]
+    R -->|sesi user + RLS| DB[(Supabase PostgreSQL)]
+    R -->|upload / signed URL| ST[(Storage privat leave-attachments)]
+    CB[/api/auth/callback/] -->|validasi @umkt.ac.id| DB
 ```
+
+### Lapisan Keamanan
+
+1. **Database (sumber kebenaran):** RLS + trigger di `supabase/migrations/20260927_security_hardening.sql`, diuji `supabase/tests/rls_test.sql`.
+2. **Server:** `src/proxy.ts` (login & role untuk `/approval`, `/admin`), `/api/auth/callback` (domain kampus).
+3. **Klien (UX):** `src/lib/permissions.ts` + `<RequireRole>` menyembunyikan aksi yang pasti ditolak server.
+
+### Mode Demo vs Live
+
+`src/lib/supabase/config.ts#isSupabaseConfigured()` menentukan mode saat build. Store (`useAuthStore`, `useLeaveStore`) bercabang ke mock atau `supabaseRepository`, sehingga komponen UI tidak perlu tahu sumber data.
 
 ## 2. Model Data & Peran Pengguna
 Sistem membedakan 4 entitas peran:
@@ -30,4 +38,5 @@ Sistem membedakan 4 entitas peran:
 - `profiles`: `id, email, full_name, nim, role, avatar_url`
 - `courses`: `id, code, name, lecturer_name, day_of_week, start_time, end_time, room, semester`
 - `leave_requests`: `id, student_id, course_id, leave_type, start_date, end_date, reason, file_urls, status, rejection_reason, created_by, verified_by, verified_at`
-- `lecturer_tokens`: `id, token, course_id, label, expires_at, created_by`
+- `lecturer_tokens`: `id, token, course_id, label, expires_at, revoked_at, created_by`
+- `course_sipen`: pemetaan Sipen ↔ mata kuliah yang dikelola (dasar hak verifikasi)

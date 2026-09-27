@@ -30,10 +30,10 @@ export function AuthBootstrap() {
   }, [userId, load]);
 
   useEffect(() => {
-    if (mustChangePassword && pathname !== PASSWORD_PAGE && !pathname.startsWith('/lecturer/')) {
+    if (userId && mustChangePassword && pathname !== PASSWORD_PAGE && !pathname.startsWith('/lecturer/')) {
       router.replace(PASSWORD_PAGE);
     }
-  }, [mustChangePassword, pathname, router]);
+  }, [userId, mustChangePassword, pathname, router]);
 
   return null;
 }

@@ -20,6 +20,7 @@ export function parseISODate(value: string): Date {
 
 /** Jumlah hari inklusif antara dua tanggal kalender; 0 bila rentang terbalik. */
 export function diffDaysInclusive(start: string, end: string): number {
+  if (!start || !end) return 0;
   const s = parseISODate(start);
   const e = parseISODate(end);
   if (e < s) return 0;

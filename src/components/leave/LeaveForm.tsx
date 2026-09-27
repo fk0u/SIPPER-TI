@@ -415,8 +415,8 @@ export const LeaveForm: React.FC = () => {
 
               {fileErrors.length > 0 && (
                 <ul className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-xl text-rose-800 dark:text-rose-300 text-[11px] space-y-1">
-                  {fileErrors.map((err) => (
-                    <li key={err} className="flex items-start gap-2">
+                  {fileErrors.map((err, i) => (
+                    <li key={`${i}-${err}`} className="flex items-start gap-2">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-500" />
                       <span>{err}</span>
                     </li>

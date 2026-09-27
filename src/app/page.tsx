@@ -318,7 +318,7 @@ export default function HomePage() {
 
         {loadError && (
           <div className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-xl text-rose-800 dark:text-rose-300 text-xs">
-            {loadError}
+            Data perizinan gagal dimuat. Periksa koneksi lalu muat ulang halaman; hubungi KM bila masalah berlanjut.
           </div>
         )}
 

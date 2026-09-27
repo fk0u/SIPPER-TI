@@ -11,6 +11,7 @@ describe('date utils', () => {
     expect(diffDaysInclusive('2026-09-21', '2026-09-21')).toBe(1);
     expect(diffDaysInclusive('2026-09-21', '2026-09-23')).toBe(3);
     expect(diffDaysInclusive('2026-09-23', '2026-09-21')).toBe(0);
+    expect(diffDaysInclusive('', '2026-09-21')).toBe(0);
     // melewati akhir bulan
     expect(diffDaysInclusive('2026-09-29', '2026-10-02')).toBe(4);
   });

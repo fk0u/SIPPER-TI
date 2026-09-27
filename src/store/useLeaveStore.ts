@@ -168,6 +168,15 @@ export const useLeaveStore = create<LeaveState>()(
           const updated = await repo.updateLeaveStatus(allowedIds, status, verifier.id, rejectionReason);
           const byId = new Map(updated.map((r) => [r.id, r]));
           set((state) => ({ requests: state.requests.map((r) => byId.get(r.id) ?? r) }));
+          if (updated.length === 0) {
+            // Sudah diputuskan verifikator lain (atau tidak berwenang): muat ulang agar status terbaru tampil
+            void get().load();
+            return {
+              success: false,
+              count: 0,
+              error: 'Pengajuan sudah diverifikasi pihak lain atau tidak lagi dapat diubah. Data dimuat ulang.',
+            };
+          }
           return { success: true, count: updated.length };
         } catch (err) {
           return { success: false, count: 0, error: errorMessage(err, 'Gagal menyimpan keputusan verifikasi.') };
@@ -204,6 +213,8 @@ export const useLeaveStore = create<LeaveState>()(
             set({ requests, courses, courseSipen, lecturerTokens, isLoaded: true, loadError: null });
           } catch (err) {
             if (generation !== loadGeneration) return;
+            // Detail error (PostgREST/RLS) hanya ke console, bukan ke UI
+            console.error('[leave-store] gagal memuat data:', err);
             set({ isLoaded: true, loadError: errorMessage(err, 'Gagal memuat data perizinan.') });
           }
         },

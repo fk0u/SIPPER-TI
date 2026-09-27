@@ -2,7 +2,7 @@
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 // Mendukung publishable key baru (sb_publishable_...) maupun anon key JWT lama.
 export const SUPABASE_PUBLISHABLE_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 /** `true` bila kredensial Supabase valid tersedia; selain itu aplikasi berjalan dalam mode demo. */
 export const isSupabaseConfigured = (): boolean =>

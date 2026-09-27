@@ -23,7 +23,7 @@ import {
 export const Navbar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, switchRole, logout, profiles, switchUser, usesPassword } = useAuthStore();
+  const { user, isAuthenticated, isReady, switchRole, logout, profiles, switchUser, usesPassword } = useAuthStore();
   const { requests, courseSipen } = useLeaveStore();
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const hydrated = useHydrated();
@@ -138,7 +138,7 @@ export const Navbar: React.FC = () => {
           <ThemeToggle />
 
           {/* User Account & Role Switcher */}
-          {!hydrated ? (
+          {!hydrated || !isReady ? (
             <div className="w-20 h-8 rounded-xl bg-slate-200/50 dark:bg-white/5 animate-pulse" />
           ) : isAuthenticated && user ? (
             <div className="relative flex items-center">

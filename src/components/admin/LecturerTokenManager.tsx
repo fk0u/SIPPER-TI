@@ -43,8 +43,14 @@ export const LecturerTokenManager: React.FC = () => {
 
     const courseId = selectedCourseId === 'all' ? null : selectedCourseId;
     setIsCreating(true);
-    const res = await generateLecturerToken(courseId, tokenLabel, user);
-    setIsCreating(false);
+    let res: Awaited<ReturnType<typeof generateLecturerToken>>;
+    try {
+      res = await generateLecturerToken(courseId, tokenLabel, user);
+    } catch {
+      res = { success: false, error: 'Terjadi kesalahan tak terduga saat membuat tautan.' };
+    } finally {
+      setIsCreating(false);
+    }
     if (!res.success) {
       setIsSuccess(false);
       toast.error(res.error || 'Gagal membuat tautan akses dosen.');

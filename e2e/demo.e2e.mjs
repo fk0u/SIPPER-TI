@@ -1,6 +1,7 @@
 // E2E mode demo (tanpa env Supabase). Jalankan server dulu:
 //   npm run build && PORT=3100 npm run start &
 //   E2E_BASE_URL=http://localhost:3100 npm run test:e2e
+import { randomUUID } from 'node:crypto';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:3100';
@@ -37,8 +38,10 @@ check('default NIM password forces /settings/password', true);
 await page.goto(BASE + '/');
 await page.waitForURL(/\/settings\/password/);
 check('cannot escape forced password page', true);
-await page.fill('#new-password', 'rahasia-baru-1');
-await page.fill('#confirm-password', 'rahasia-baru-1');
+// Dibuat saat runtime agar tidak ada nilai kredensial tetap di repo
+const newSecret = `uji-${randomUUID()}`;
+await page.fill('#new-password', newSecret);
+await page.fill('#confirm-password', newSecret);
 await page.click('button:has-text("Simpan Kata Sandi")');
 await page.waitForURL(BASE + '/');
 await page.waitForSelector('text=Halo');

@@ -426,7 +426,7 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ============================================================================
--- 8. PASSWORD: tandai sudah diganti hanya ketika password auth benar-benar berubah
+-- 8. STATUS GANTI KATA SANDI: ditandai hanya ketika kredensial auth benar-benar berubah
 -- ============================================================================
 DROP FUNCTION IF EXISTS public.mark_password_changed();
 

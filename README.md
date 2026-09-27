@@ -114,6 +114,8 @@ Tanpa file `.env.local`, aplikasi berjalan dalam **mode demo** (data contoh di b
 2. Jalankan migrasi berurutan di Supabase SQL Editor / CLI:
    `supabase/migrations/20260921_initial_schema.sql` lalu `20260927_security_hardening.sql`.
 3. Buat akun login NIM: `node --env-file=.env.local scripts/seed-auth-users.mjs [roster.csv]`.
+   Password awal = NIM dan wajib diganti saat login pertama (ditegakkan `src/proxy.ts`). Karena NIM mudah ditebak,
+   buat akun per batch sesaat sebelum dipakai dan minta mahasiswa segera masuk & mengganti password.
 4. (Dev/staging saja) jalankan `supabase/seed.sql` untuk data contoh.
 5. Aktifkan provider Google di Supabase Auth dan tambahkan `https://<domain>/api/auth/callback` ke Redirect URLs.
 

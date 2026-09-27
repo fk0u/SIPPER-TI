@@ -1,6 +1,12 @@
 -- ============================================================================
 -- SIPPER-TI: Seed Data Script
 -- Seeding: Mahasiswa TI Internasional, Dosen, Matkul, Sipen, dan Izin Sampel
+--
+-- HANYA UNTUK PENGEMBANGAN / STAGING. Jangan dijalankan di produksi:
+-- token dosen demo di bagian akhir mudah ditebak.
+--
+-- Urutan: (1) jalankan migrasi, (2) node scripts/seed-auth-users.mjs
+-- (membuat akun auth dengan id yang sama), (3) jalankan file ini.
 -- ============================================================================
 
 -- 1. SEED COURSES
@@ -94,7 +100,7 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.lecturer_tokens (id, token, course_id, label, expires_at, created_by)
 VALUES
     (
-        't1111111-1111-1111-1111-111111111111',
+        'f1111111-1111-1111-1111-111111111111',
         'demo-dosen-hendra-2026',
         'c1111111-1111-1111-1111-111111111111',
         'Link Presensi Dosen Dr. Hendra (Cloud Architecture)',
@@ -102,7 +108,7 @@ VALUES
         'a0000000-0000-0000-0000-000000000003'
     ),
     (
-        't2222222-2222-2222-2222-222222222222',
+        'f2222222-2222-2222-2222-222222222222',
         'demo-dosen-semua-matkul',
         NULL, -- Akses Semua Matkul untuk Ketua Prodi / Koordinator
         'Link Supervisi Koordinator Kelas Internasional',

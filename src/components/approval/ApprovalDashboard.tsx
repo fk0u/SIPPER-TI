@@ -439,5 +439,3 @@ export const ApprovalDashboard: React.FC = () => {
     </div>
   );
 };
-
-export default ApprovalDashboard;

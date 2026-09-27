@@ -320,5 +320,3 @@ export const LecturerTokenManager: React.FC = () => {
     </div>
   );
 };
-
-export default LecturerTokenManager;

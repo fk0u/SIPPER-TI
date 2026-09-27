@@ -19,6 +19,7 @@ import {
 } from '@/lib/mockData';
 import { canManageTokens, canSubmitFor, canVerifyRequest } from '@/lib/permissions';
 import * as repo from '@/lib/data/supabaseRepository';
+import { errorMessage } from '@/lib/errors';
 import { useAuthStore, isDemoMode } from './useAuthStore';
 
 export interface SubmitLeavePayload {
@@ -65,9 +66,6 @@ const TOKEN_VALIDITY_DAYS = 180;
 const DEMO_INLINE_BUDGET_BYTES = 750 * 1024;
 /** Nomor urut pemuatan data live: respons lama dibuang. */
 let loadGeneration = 0;
-
-const errorMessage = (err: unknown, fallback: string) =>
-  err instanceof Error && err.message ? err.message : fallback;
 
 function randomHex(bytes: number): string {
   const arr = new Uint8Array(bytes);

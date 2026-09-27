@@ -52,10 +52,6 @@ export function canSubmitFor(
   return user.role === 'km' || isSipenOf(user, courseId, courseSipen);
 }
 
-export function canUseProxy(user: Actor): boolean {
-  return isSupervisor(user);
-}
-
 export function canManageTokens(user: Actor): boolean {
   return Boolean(user && user.role === 'km');
 }

@@ -308,5 +308,3 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ recap, dem
     </div>
   );
 };
-
-export default GuestLecturerView;

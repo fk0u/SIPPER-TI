@@ -6,41 +6,15 @@ import { persist } from 'zustand/middleware';
 interface ThemeState {
   theme: 'dark' | 'light';
   toggleTheme: () => void;
-  setTheme: (theme: 'dark' | 'light') => void;
 }
 
+// Kelas <html> disinkronkan oleh ThemeToggle (useEffect) dan THEME_INIT_SCRIPT di layout.
 export const useThemeStore = create<ThemeState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       theme: 'dark',
-      toggleTheme: () => {
-        const nextTheme = get().theme === 'dark' ? 'light' : 'dark';
-        set({ theme: nextTheme });
-        if (typeof document !== 'undefined') {
-          if (nextTheme === 'dark') {
-            document.documentElement.classList.add('dark');
-            document.documentElement.classList.remove('light');
-          } else {
-            document.documentElement.classList.remove('dark');
-            document.documentElement.classList.add('light');
-          }
-        }
-      },
-      setTheme: (theme) => {
-        set({ theme });
-        if (typeof document !== 'undefined') {
-          if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-            document.documentElement.classList.remove('light');
-          } else {
-            document.documentElement.classList.remove('dark');
-            document.documentElement.classList.add('light');
-          }
-        }
-      },
+      toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
     }),
-    {
-      name: 'sipper-ti-theme-store',
-    }
+    { name: 'sipper-ti-theme-store' }
   )
 );

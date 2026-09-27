@@ -167,5 +167,3 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
     </div>
   );
 };
-
-export default QRCodeModal;

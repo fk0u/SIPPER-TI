@@ -233,7 +233,12 @@ export default function HomePage() {
                       {c.code} — {c.name}
                     </span>
                     <span className="text-slate-500 dark:text-slate-400 text-[11px] block truncate">
-                      {c.start_time.slice(0, 5)}–{c.end_time.slice(0, 5)} • {c.lecturer_name}
+                      {[
+                        c.start_time && c.end_time ? `${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)}` : null,
+                        c.lecturer_name,
+                      ]
+                        .filter(Boolean)
+                        .join(' • ') || 'Jadwal belum diatur'}
                     </span>
                   </div>
                 ))

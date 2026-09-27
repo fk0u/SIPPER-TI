@@ -251,7 +251,7 @@ export const INITIAL_LEAVE_REQUESTS: LeaveRequestWithRelations[] = [
     id: 'e3333333-3333-3333-3333-333333333333',
     student_id: 'a0000000-0000-0000-0000-000000000007',
     course_id: 'c2222222-2222-2222-2222-222222222222',
-    leave_type: 'acara',
+    leave_type: 'acara_kampus',
     start_date: '2026-09-22',
     end_date: '2026-09-22',
     reason: 'Delegasi Lomba Finalis Hackathon Artificial Intelligence Nasional 2026.',

@@ -23,7 +23,7 @@ import {
 export const Navbar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, switchRole, logout, profiles, switchUser } = useAuthStore();
+  const { user, isAuthenticated, switchRole, logout, profiles, switchUser, usesPassword } = useAuthStore();
   const { requests, courseSipen } = useLeaveStore();
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const hydrated = useHydrated();
@@ -242,7 +242,7 @@ export const Navbar: React.FC = () => {
 
                     )}
 
-                    {user.email.endsWith('@local.sipper-ti') || demo ? (
+                    {usesPassword ? (
                       <Link
                         href="/settings/password"
                         onClick={() => setIsAccountOpen(false)}

@@ -19,9 +19,9 @@ Platform ini menyelesaikan masalah tercecernya surat izin di WhatsApp dengan men
 - **Bahasa:** TypeScript (strict)
 - **UI:** React 19, Tailwind CSS v4, Lucide Icons, Geist font, komponen ReactBits (`SpotlightCard`, `ShinyText`, `CountUp`). Tidak memakai Shadcn/Framer Motion/GSAP.
 - **State:** Zustand 5 (`useAuthStore`, `useLeaveStore`, `useThemeStore`, `useToastStore`)
-- **Backend:** Supabase (PostgreSQL + RLS, Auth `@supabase/ssr`, Storage privat `leave-attachments`)
+- **Backend:** Supabase (PostgreSQL + RLS, Auth `@supabase/ssr`, Storage privat `permit-proofs`)
 - **Mode ganda:**
-  - **Live** — bila `NEXT_PUBLIC_SUPABASE_URL` & `NEXT_PUBLIC_SUPABASE_ANON_KEY` terisi. Data via `src/lib/data/supabaseRepository.ts`, dijaga RLS.
+  - **Live** — bila `NEXT_PUBLIC_SUPABASE_URL` & `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` terisi. Data via `src/lib/data/supabaseRepository.ts`, dijaga RLS.
   - **Demo** — bila env kosong. Data mock (`src/lib/mockData.ts`) di localStorage, termasuk pengalih profil demo.
 - **Tema:** default gelap, diterapkan sebelum paint oleh skrip inline di `src/app/layout.tsx`.
 
@@ -59,9 +59,9 @@ Sumber kebenaran: RLS di `supabase/migrations/20260927_security_hardening.sql`. 
 ## ⚙️ IMPORTANT BUSINESS LOGIC & CONSTRAINTS
 
 - **Domain SSO:** divalidasi di server (`/api/auth/callback`) dan trigger DB `handle_new_user`. Parameter `hd` Google hanya petunjuk UI.
-- **Login NIM:** email sintetis `{nim}@local.sipper-ti`, password awal = NIM, dibuat oleh `scripts/seed-auth-users.mjs`. Selama `is_password_changed = false` pengguna dipaksa ke `/settings/password`.
+- **Login NIM:** email kampus `{nim}@umkt.ac.id` (akun yang sama dengan Google SSO), password awal = NIM, dibuat oleh `scripts/seed-auth-users.mjs`. Selama `is_password_changed = false` pengguna dipaksa ke `/settings/password`.
 - **Tanggal:** selalu pakai `src/lib/date.ts` (tanggal lokal). Jangan `toISOString().split('T')[0]`.
-- **Lampiran:** JPG/PNG/WebP/PDF ≤ 5MB (`src/lib/attachments.ts`). Mode live: diunggah ke `leave-attachments/{uid}/...`, `file_urls` menyimpan `path`, ditampilkan via signed URL. Tidak ada lampiran pengganti/palsu.
+- **Lampiran:** JPG/PNG/WebP/PDF ≤ 5MB (`src/lib/attachments.ts`). Mode live: diunggah ke `permit-proofs/{uid}/...`, `file_urls` menyimpan `path`, ditampilkan via signed URL. Tidak ada lampiran pengganti/palsu.
 - **Proxy:** `created_by = pengaju`, `student_id = mahasiswa`; UI menandai "Proxy".
 - **Token dosen:** 48 hex acak, masa berlaku 180 hari, bisa dicabut (`revoked_at`).
 

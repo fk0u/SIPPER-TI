@@ -2,7 +2,7 @@ import { connection } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { GuestLecturerView } from '@/components/lecturer/GuestLecturerView';
 import { DemoLecturerRecap } from '@/components/lecturer/DemoLecturerRecap';
-import { SUPABASE_ANON_KEY, SUPABASE_URL, isSupabaseConfigured } from '@/lib/supabase/config';
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, isSupabaseConfigured } from '@/lib/supabase/config';
 import type { LecturerRecapResult } from '@/types/database';
 
 export const metadata = {
@@ -17,7 +17,7 @@ interface PageProps {
 
 async function fetchRecap(token: string): Promise<LecturerRecapResult> {
   // Akses anonim: tidak memakai cookie sesi; hak akses ditentukan RPC SECURITY DEFINER.
-  const supabase = createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  const supabase = createSupabaseClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await supabase.rpc('get_lecturer_recap', { p_token: token });

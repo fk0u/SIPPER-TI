@@ -9,6 +9,7 @@ import { LeaveType } from '@/types/database';
 import { diffDaysInclusive, todayLocalISO } from '@/lib/date';
 import { formatFileSize, validateAttachmentFiles } from '@/lib/attachments';
 import { canUseProxy as canUseProxyFor, isSipenOf } from '@/lib/permissions';
+import { LEAVE_TYPES, LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import {
   UploadCloud,
   FileText,
@@ -91,12 +92,8 @@ export const LeaveForm: React.FC = () => {
       return;
     }
 
-    if (files.length === 0 && leaveType !== 'izin') {
-      setErrorMessage(
-        leaveType === 'sakit'
-          ? 'Pengajuan sakit wajib melampirkan foto surat keterangan dokter / klinik.'
-          : 'Pengajuan tugas / lomba wajib melampirkan surat tugas atau dispensasi.'
-      );
+    if (files.length === 0 && LEAVE_TYPE_META[leaveType].requiresAttachment) {
+      setErrorMessage(LEAVE_TYPE_META[leaveType].attachmentHint);
       return;
     }
 
@@ -283,7 +280,15 @@ export const LeaveForm: React.FC = () => {
               >
                 {courseOptions.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.code} — {c.name} ({c.day_of_week}, {c.start_time}-{c.end_time}) • {c.lecturer_name}
+                    {[
+                      `${c.code} — ${c.name}`,
+                      c.day_of_week && c.start_time && c.end_time
+                        ? `(${c.day_of_week}, ${c.start_time.slice(0, 5)}-${c.end_time.slice(0, 5)})`
+                        : null,
+                      c.lecturer_name ? `• ${c.lecturer_name}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                   </option>
                 ))}
               </select>
@@ -294,8 +299,8 @@ export const LeaveForm: React.FC = () => {
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
                 Kategori Perizinan
               </label>
-              <div className="grid grid-cols-3 gap-2.5">
-                {(['sakit', 'izin', 'acara'] as LeaveType[]).map((type) => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {LEAVE_TYPES.map((type) => (
                   <button
                     key={type}
                     type="button"
@@ -307,10 +312,10 @@ export const LeaveForm: React.FC = () => {
                     }`}
                   >
                     <span className="text-base">
-                      {type === 'sakit' ? '🏥' : type === 'izin' ? '📄' : '🏆'}
+                      {LEAVE_TYPE_META[type].emoji}
                     </span>
-                    <span className="capitalize text-[11px]">
-                      {type === 'sakit' ? 'Sakit' : type === 'izin' ? 'Izin Pribadi' : 'Tugas / Lomba'}
+                    <span className="text-[11px]">
+                      {LEAVE_TYPE_META[type].label}
                     </span>
                   </button>
                 ))}
@@ -383,7 +388,7 @@ export const LeaveForm: React.FC = () => {
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                 <span>Lampiran Berkas Bukti (Surat Dokter / Dokumen PDF)</span>
                 <span className="text-[10px] text-slate-400 font-mono">
-                  {leaveType === 'izin' ? 'Opsional • ' : 'Wajib • '}Maks. 5MB
+                  {LEAVE_TYPE_META[leaveType].requiresAttachment ? 'Wajib • ' : 'Opsional • '}Maks. 5MB
                 </span>
               </label>
 

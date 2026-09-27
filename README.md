@@ -110,7 +110,7 @@ npm run dev          # http://localhost:3000
 Tanpa file `.env.local`, aplikasi berjalan dalam **mode demo** (data contoh di browser).
 
 ### 3. Mode Live (Supabase)
-1. Salin `.env.example` → `.env.local`, isi `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY`.
+1. Salin `.env.example` → `.env.local`, isi `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, dan `SUPABASE_SECRET_KEY`.
 2. Jalankan migrasi berurutan di Supabase SQL Editor / CLI:
    `supabase/migrations/20260921_initial_schema.sql` lalu `20260927_security_hardening.sql`.
 3. Buat akun login NIM: `node --env-file=.env.local scripts/seed-auth-users.mjs [roster.csv]`.

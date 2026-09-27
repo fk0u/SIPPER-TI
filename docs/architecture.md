@@ -13,7 +13,7 @@ graph TD
     S -->|mode demo| M[(mockData + localStorage)]
     S -->|mode live| R[supabaseRepository]
     R -->|sesi user + RLS| DB[(Supabase PostgreSQL)]
-    R -->|upload / signed URL| ST[(Storage privat leave-attachments)]
+    R -->|upload / signed URL| ST[(Storage privat permit-proofs)]
     CB[/api/auth/callback/] -->|validasi @umkt.ac.id| DB
 ```
 

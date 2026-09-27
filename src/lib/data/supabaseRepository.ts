@@ -29,11 +29,18 @@ function unwrap<T>(result: { data: T | null; error: { message: string } | null }
   return result.data as T;
 }
 
-export async function fetchSessionProfile(): Promise<Profile | null> {
+export interface SessionInfo {
+  profile: Profile | null;
+  /** Provider login terakhir: 'email' (NIM + password) atau 'google'. */
+  provider: string | null;
+}
+
+export async function fetchSession(): Promise<SessionInfo> {
   const supabase = createClient();
   const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  return fetchProfile(data.user.id);
+  if (!data.user) return { profile: null, provider: null };
+  const provider = (data.user.app_metadata?.provider as string | undefined) ?? null;
+  return { profile: await fetchProfile(data.user.id), provider };
 }
 
 export async function fetchProfile(id: string): Promise<Profile | null> {

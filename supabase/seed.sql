@@ -84,7 +84,7 @@ VALUES
         'e3333333-3333-3333-3333-333333333333',
         'a0000000-0000-0000-0000-000000000007', -- Farhan
         'c2222222-2222-2222-2222-222222222222', -- Machine Learning
-        'acara',
+        'acara_kampus',
         '2026-09-22',
         '2026-09-22',
         'Mengikuti kompetisi Hackathon AI Nasional mewakili BEM Fakultas.',

@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware';
 import { Profile, UserRole } from '@/types/database';
 import { INITIAL_PROFILES } from '@/lib/mockData';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import { isNimAccountEmail, nimToEmail } from '@/lib/supabase/config';
+import { nimToEmail } from '@/lib/supabase/config';
 import * as repo from '@/lib/data/supabaseRepository';
 
 type Result = { success: boolean; error?: string };
@@ -19,6 +19,8 @@ interface AuthState {
   isReady: boolean;
   /** Akun login NIM yang masih memakai password default wajib mengganti password. */
   mustChangePassword: boolean;
+  /** Masuk dengan NIM + password (bukan Google), sehingga bisa mengganti password. */
+  usesPassword: boolean;
   error: string | null;
   /** Mode demo: hash SHA-256 password yang sudah diganti, per id profil. */
   demoPasswordHashes: Record<string, string>;
@@ -60,6 +62,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isReady: isDemoMode(),
       mustChangePassword: false,
+      usesPassword: false,
       error: null,
       demoPasswordHashes: {},
 
@@ -71,15 +74,15 @@ export const useAuthStore = create<AuthState>()(
 
         const loadSession = async () => {
           try {
-            const profile = await repo.fetchSessionProfile();
+            const { profile, provider } = await repo.fetchSession();
             const profiles = profile ? await repo.fetchProfiles() : [];
+            const usesPassword = provider === 'email';
             set({
               user: profile,
               profiles,
               isAuthenticated: Boolean(profile),
-              mustChangePassword: Boolean(
-                profile && isNimAccountEmail(profile.email) && !profile.is_password_changed
-              ),
+              usesPassword,
+              mustChangePassword: Boolean(profile && usesPassword && !profile.is_password_changed),
               isReady: true,
             });
           } catch (err) {
@@ -130,6 +133,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           isLoading: false,
           mustChangePassword: false,
+          usesPassword: false,
           error: null,
         });
         return { success: true };
@@ -172,6 +176,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           isLoading: false,
           mustChangePassword: !storedHash && !found.is_password_changed,
+          usesPassword: true,
           error: null,
         });
         return { success: true };
@@ -210,7 +215,7 @@ export const useAuthStore = create<AuthState>()(
         if (!isDemoMode()) return;
         const found = get().profiles.find((p) => p.id === userId);
         if (found) {
-          set({ user: found, isAuthenticated: true, mustChangePassword: false });
+          set({ user: found, isAuthenticated: true, mustChangePassword: false, usesPassword: true });
         }
       },
 
@@ -218,7 +223,7 @@ export const useAuthStore = create<AuthState>()(
         if (!isDemoMode()) return;
         const targetProfile = get().profiles.find((p) => p.role === role);
         if (targetProfile) {
-          set({ user: targetProfile, isAuthenticated: true, mustChangePassword: false });
+          set({ user: targetProfile, isAuthenticated: true, mustChangePassword: false, usesPassword: true });
         }
       },
 
@@ -234,6 +239,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           isAuthenticated: false,
           mustChangePassword: false,
+          usesPassword: false,
           error: null,
           profiles: isDemoMode() ? INITIAL_PROFILES : [],
         });
@@ -251,6 +257,7 @@ export const useAuthStore = create<AuthState>()(
               user: state.user,
               isAuthenticated: state.isAuthenticated,
               mustChangePassword: state.mustChangePassword,
+              usesPassword: state.usesPassword,
               demoPasswordHashes: state.demoPasswordHashes,
             }
           : {},

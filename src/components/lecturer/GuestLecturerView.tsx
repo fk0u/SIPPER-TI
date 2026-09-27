@@ -5,6 +5,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { CountUp } from '@/components/reactbits/CountUp';
 import type { LecturerRecapResult } from '@/types/database';
 import { diffDaysInclusive, isDateInRange } from '@/lib/date';
+import { LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import {
   GraduationCap,
   Calendar,
@@ -129,15 +130,17 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ recap, dem
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div className="bg-slate-100/70 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-mono uppercase font-semibold">Jadwal Kuliah</span>
-                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.day_of_week}</span>
+                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.day_of_week ?? '-'}</span>
               </div>
               <div className="bg-slate-100/70 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-mono uppercase font-semibold">Waktu Sesi</span>
-                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.start_time.slice(0, 5)} - {assignedCourse.end_time.slice(0, 5)} WITA</span>
+                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.start_time && assignedCourse.end_time
+                    ? `${assignedCourse.start_time.slice(0, 5)} - ${assignedCourse.end_time.slice(0, 5)} WITA`
+                    : '-'}</span>
               </div>
               <div className="bg-slate-100/70 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-mono uppercase font-semibold">Ruang Kelas</span>
-                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.room}</span>
+                <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">{assignedCourse.room ?? '-'}</span>
               </div>
               <div className="bg-slate-100/70 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-mono uppercase font-semibold">Semester Aktif</span>
@@ -253,15 +256,11 @@ export const GuestLecturerView: React.FC<GuestLecturerViewProps> = ({ recap, dem
                     </td>
                     <td className="py-3.5 px-4">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-md font-semibold text-[9px] uppercase font-mono tracking-wider ${
-                          req.leave_type === 'sakit'
-                            ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/25'
-                            : req.leave_type === 'acara'
-                            ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/25'
-                            : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/25'
+                        className={`inline-block px-2 py-0.5 rounded-md font-semibold text-[9px] uppercase font-mono tracking-wider border ${
+                          LEAVE_TYPE_META[req.leave_type]?.badge ?? ''
                         }`}
                       >
-                        {req.leave_type}
+                        {LEAVE_TYPE_META[req.leave_type]?.short ?? req.leave_type}
                       </span>
                     </td>
                     {!assignedCourse && (

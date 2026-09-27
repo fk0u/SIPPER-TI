@@ -9,6 +9,7 @@ import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import { canVerifyRequest } from '@/lib/permissions';
 import { diffDaysInclusive, parseISODate } from '@/lib/date';
+import { LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import {
   Calendar,
   BookOpen,
@@ -159,9 +160,11 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
                 <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block truncate">
                   {request.course.code} — {request.course.name}
                 </span>
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px] mt-0.5 truncate">
-                  Dosen: {request.course.lecturer_name}
-                </span>
+                {request.course.lecturer_name && (
+                  <span className="text-slate-500 dark:text-slate-400 block text-[11px] mt-0.5 truncate">
+                    Dosen: {request.course.lecturer_name}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -186,15 +189,11 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
           <div className="space-y-1.5 text-xs">
             <div className="flex items-center gap-2">
               <span
-                className={`px-2 py-0.5 rounded-md font-semibold text-[9px] uppercase tracking-wider font-mono ${
-                  request.leave_type === 'sakit'
-                    ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/25'
-                    : request.leave_type === 'acara'
-                    ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/25'
-                    : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/25'
+                className={`px-2 py-0.5 rounded-md font-semibold text-[9px] uppercase tracking-wider font-mono border ${
+                  LEAVE_TYPE_META[request.leave_type]?.badge ?? ''
                 }`}
               >
-                {request.leave_type}
+                {LEAVE_TYPE_META[request.leave_type]?.label ?? request.leave_type}
               </span>
               <span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider font-mono">
                 Alasan / Keterangan:

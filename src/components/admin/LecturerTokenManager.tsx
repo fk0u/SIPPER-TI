@@ -155,7 +155,7 @@ export const LecturerTokenManager: React.FC = () => {
                 <option value="all">Seluruh Mata Kuliah (Akses Koordinator/Kaprodi)</option>
                 {courses.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.code} — {c.name} ({c.lecturer_name})
+                    {c.code} — {c.name}{c.lecturer_name ? ` (${c.lecturer_name})` : ''}
                   </option>
                 ))}
               </select>

@@ -3,7 +3,7 @@
 // ============================================================================
 
 export type UserRole = 'mahasiswa' | 'sipen' | 'km';
-export type LeaveType = 'sakit' | 'izin' | 'acara';
+export type LeaveType = 'sakit' | 'izin_biasa' | 'keluar_kampus' | 'acara_kampus';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
 export interface Profile {
@@ -23,13 +23,15 @@ export interface Course {
   id: string;
   code: string;
   name: string;
-  lecturer_name: string;
-  day_of_week: string;
-  start_time: string;
-  end_time: string;
+  // Kolom jadwal opsional: belum tentu diisi untuk setiap mata kuliah.
+  lecturer_name: string | null;
+  day_of_week: string | null;
+  start_time: string | null;
+  end_time: string | null;
   semester: string;
-  room: string;
+  room: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface CourseSipen {

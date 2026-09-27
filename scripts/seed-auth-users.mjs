@@ -1,24 +1,25 @@
 #!/usr/bin/env node
 // Membuat akun login NIM (Supabase Auth) untuk daftar mahasiswa.
-// Email sintetis: {nim}@local.sipper-ti, password awal = NIM (wajib diganti saat login pertama).
+// Email kampus: {nim}@umkt.ac.id (akun yang sama dengan Google SSO), password awal = NIM
+// (wajib diganti saat login pertama).
 //
 // Pemakaian:
-//   NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-auth-users.mjs [roster.csv]
+//   NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SECRET_KEY=... node scripts/seed-auth-users.mjs [roster.csv]
 //
 // Format CSV (dengan header): id,nim,full_name,role
 //   - id opsional (kosongkan agar dibuat otomatis); isi untuk mencocokkan supabase/seed.sql
 //   - role: mahasiswa | sipen | km
 // Tanpa argumen, akun demo dari supabase/seed.sql yang dibuat.
 //
-// SUPABASE_SERVICE_ROLE_KEY bersifat rahasia: jangan pernah diberi prefix NEXT_PUBLIC_.
+// SUPABASE_SECRET_KEY (atau SUPABASE_SERVICE_ROLE_KEY lama) bersifat rahasia: jangan pernah diberi prefix NEXT_PUBLIC_.
 
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const serviceKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !serviceKey) {
-  console.error('Set NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY terlebih dahulu.');
+  console.error('Set NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SECRET_KEY terlebih dahulu.');
   process.exit(1);
 }
 
@@ -56,7 +57,7 @@ for (const { id, nim, full_name, role = 'mahasiswa' } of roster) {
   }
   const { data, error } = await supabase.auth.admin.createUser({
     ...(id ? { id } : {}),
-    email: `${nim}@local.sipper-ti`,
+    email: `${nim}@umkt.ac.id`,
     password: nim,
     email_confirm: true,
     user_metadata: { nim, full_name },

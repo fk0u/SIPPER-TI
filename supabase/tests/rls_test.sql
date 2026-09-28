@@ -385,6 +385,59 @@ SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000007');
 SELECT pg_temp.expect_value('status superadmin tetap utuh',
     $q$SELECT is_admin::text FROM get_my_profile()$q$, 'true');
 
+-- ---------------------------------------------------------------------------
+-- Fitur SiPenDosa: jam operasional, dry run, versi template, papan publik, kirim ulang, grup, statistik
+-- ---------------------------------------------------------------------------
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002');
+SELECT pg_temp.expect_rows('sipen atur jam operasional + dry run',
+    $q$SELECT update_reminder_settings('07:00', '17:00', true)$q$, 1);
+SELECT pg_temp.expect_value('pengaturan pengingat tersimpan',
+    $q$SELECT send_window_start || '-' || send_window_end || ':' || reminder_dry_run FROM classes$q$, '07:00:00-17:00:00:true');
+SELECT pg_temp.expect_error('jam operasional terbalik ditolak',
+    $q$SELECT update_reminder_settings('17:00', '07:00', false)$q$, 'setelah');
+SELECT pg_temp.expect_rows('sipen ubah template lagi',
+    $q$SELECT set_reminder_template('Versi ketiga {{.Matkul}}')$q$, 1);
+SELECT pg_temp.expect_rows('riwayat versi template tersimpan', $q$SELECT 1 FROM reminder_template_versions$q$, 2);
+SELECT pg_temp.expect_value('papan jadwal publik aktif (token 48 hex)',
+    $q$SELECT (set_class_board('on') ~ '^[0-9a-f]{48}$')::text$q$, 'true');
+SELECT pg_temp.expect_value('papan jadwal dinonaktifkan',
+    $q$SELECT COALESCE(set_class_board('off'), 'null')$q$, 'null');
+SELECT pg_temp.expect_rows('kirim ulang pesan yang dibatalkan',
+    $q$SELECT retry_wa_message((SELECT max(id) FROM wa_messages WHERE course_id IS NULL))$q$, 1);
+SELECT pg_temp.expect_error('pesan pending tidak bisa dikirim ulang',
+    $q$SELECT retry_wa_message((SELECT max(id) FROM wa_messages WHERE course_id IS NULL))$q$, 'tidak dapat');
+SELECT pg_temp.expect_value('statistik antrean kelas', $q$SELECT wa_stats() ->> 'pending'$q$, '2');
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+SELECT pg_temp.expect_error('mahasiswa baca statistik WA', $q$SELECT wa_stats()$q$, 'Khusus');
+SELECT pg_temp.expect_rows('mahasiswa tidak melihat riwayat template', $q$SELECT 1 FROM reminder_template_versions$q$, 0);
+SELECT pg_temp.expect_error('mahasiswa mengaktifkan papan publik', $q$SELECT set_class_board('on')$q$, 'Khusus');
+
+RESET ROLE;
+SELECT pg_temp.act_as(NULL);
+INSERT INTO wa_groups (class_id, jid, name, participants) VALUES
+ ('0a000000-0000-0000-0000-00000000000a', '120363000000000001@g.us', 'Grup Kelas A', 30);
+UPDATE classes SET public_token = repeat('ef', 24) WHERE id = '0a000000-0000-0000-0000-00000000000a';
+-- Budi mengaktifkan 2FA (faktor TOTP terverifikasi)
+INSERT INTO auth.mfa_factors (user_id, status) VALUES ('a0000000-0000-0000-0000-000000000003', 'verified');
+SET ROLE authenticated;
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002');
+SELECT pg_temp.expect_rows('staf melihat grup WA kelasnya', $q$SELECT 1 FROM wa_groups$q$, 1);
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000005');
+SELECT pg_temp.expect_rows('staf kelas lain tidak melihat grup WA', $q$SELECT 1 FROM wa_groups$q$, 0);
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000003');
+SELECT pg_temp.expect_rows('2FA: sesi password saja tidak melihat data kelas', $q$SELECT 1 FROM courses$q$, 0);
+SELECT pg_temp.expect_rows('2FA: sesi password saja tetap melihat profil sendiri', $q$SELECT 1 FROM profiles$q$, 1);
+SELECT pg_temp.expect_error('2FA: sesi password saja kehilangan hak KM', $q$SELECT wa_request('on')$q$, 'Khusus');
+SELECT set_config('request.jwt.claims',
+    json_build_object('sub', 'a0000000-0000-0000-0000-000000000003', 'role', 'authenticated', 'aal', 'aal2')::text, false);
+SELECT pg_temp.expect_rows('2FA: sesi aal2 mendapat data kelas', $q$SELECT 1 FROM courses$q$, 3);
+SELECT pg_temp.expect_rows('2FA: sesi aal2 mendapat hak KM', $q$SELECT wa_request('off')$q$, 1);
+RESET ROLE;
+SELECT pg_temp.act_as(NULL);
+DELETE FROM auth.mfa_factors;
+SET ROLE authenticated;
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000007');
+
 RESET ROLE;
 SELECT pg_temp.act_as(NULL);
 SELECT pg_temp.expect_value('akun pendaftar yang ditolak terhapus',
@@ -411,6 +464,15 @@ SELECT pg_temp.expect_value('portal dosen: hari libur mendatang',
     $q$SELECT jsonb_array_length(get_lecturer_portal(repeat('ab', 24)) -> 'holidays')::text$q$, '1');
 SELECT pg_temp.expect_value('portal dosen: token tidak dikenal',
     $q$SELECT get_lecturer_portal(repeat('cd', 24)) ->> 'status'$q$, 'not_found');
+SELECT pg_temp.expect_value('papan jadwal publik: token valid',
+    $q$SELECT get_class_board(repeat('ef', 24)) ->> 'status'$q$, 'ok');
+SELECT pg_temp.expect_value('papan jadwal publik: semua matkul kelas',
+    $q$SELECT jsonb_array_length(get_class_board(repeat('ef', 24)) -> 'courses')::text$q$, '3');
+SELECT pg_temp.expect_value('papan jadwal publik: tanpa data mahasiswa',
+    $q$SELECT (get_class_board(repeat('ef', 24))::text ~* '(nim|student|reason)')::text$q$, 'false');
+SELECT pg_temp.expect_value('papan jadwal publik: token salah',
+    $q$SELECT get_class_board(repeat('00', 24)) ->> 'status'$q$, 'not_found');
+SELECT pg_temp.expect_error('anon mengubah papan publik', $q$SELECT set_class_board('on')$q$, 'permission denied');
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------

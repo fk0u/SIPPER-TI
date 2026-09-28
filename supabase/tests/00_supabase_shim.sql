@@ -8,6 +8,7 @@ CREATE SCHEMA IF NOT EXISTS auth; CREATE SCHEMA IF NOT EXISTS storage;
 CREATE TABLE IF NOT EXISTS auth.users (id uuid primary key default gen_random_uuid(), email text, encrypted_password text, raw_user_meta_data jsonb default '{}');
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS encrypted_password text;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS raw_app_meta_data jsonb default '{}';
+CREATE TABLE IF NOT EXISTS auth.mfa_factors (id uuid primary key default gen_random_uuid(), user_id uuid, status text);
 -- Seperti Supabase: objek baru di public otomatis di-grant ke semua role API (RLS yang membatasi)
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;

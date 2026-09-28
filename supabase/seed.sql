@@ -6,17 +6,22 @@
 -- token dosen demo di bagian akhir mudah ditebak.
 --
 -- Urutan: (1) jalankan migrasi, (2) node scripts/seed-auth-users.mjs
--- (membuat akun auth dengan id yang sama), (3) jalankan file ini.
+-- (membuat akun auth dengan id yang sama di kelas demo), (3) jalankan file ini.
 -- ============================================================================
 
+-- 0. KELAS DEMO
+INSERT INTO public.classes (id, name, program, batch, status, approved_at)
+VALUES ('0d000000-0000-0000-0000-00000000000d', 'Demo TI Internasional', 'Teknik Informatika', '2026', 'active', NOW())
+ON CONFLICT (id) DO NOTHING;
+
 -- 1. SEED COURSES
-INSERT INTO public.courses (id, code, name, lecturer_name, day_of_week, start_time, end_time, semester, room)
+INSERT INTO public.courses (id, class_id, code, name, lecturer_name, day_of_week, start_time, end_time, semester, room)
 VALUES
-    ('c1111111-1111-1111-1111-111111111111', 'TI-401', 'Cloud Architecture & DevOps', 'Dr. Hendra, S.Kom., M.T.', 'Senin', '08:00', '10:30', '2026/2027-1', 'Lab Komputer 3'),
-    ('c2222222-2222-2222-2222-222222222222', 'TI-402', 'Machine Learning & AI Ethics', 'Ir. Nurul Hidayah, Ph.D.', 'Selasa', '13:00', '15:30', '2026/2027-1', 'Ruang Teori 4.2'),
-    ('c3333333-3333-3333-3333-333333333333', 'TI-403', 'Mobile Application Development', 'Ahmad Fauzi, M.Cs.', 'Kamis', '10:00', '12:30', '2026/2027-1', 'Lab Mobile & IoT'),
-    ('c4444444-4444-4444-4444-444444444444', 'TI-404', 'Software Quality Assurance & Testing', 'Prof. Bambang Setiawan, M.Sc.', 'Jumat', '08:30', '11:00', '2026/2027-1', 'Lab Rekayasa Perangkat Lunak')
-ON CONFLICT (code) DO UPDATE
+    ('c1111111-1111-1111-1111-111111111111', '0d000000-0000-0000-0000-00000000000d', 'TI-401', 'Cloud Architecture & DevOps', 'Dr. Hendra, S.Kom., M.T.', 'Senin', '08:00', '10:30', '2026/2027-1', 'Lab Komputer 3'),
+    ('c2222222-2222-2222-2222-222222222222', '0d000000-0000-0000-0000-00000000000d', 'TI-402', 'Machine Learning & AI Ethics', 'Ir. Nurul Hidayah, Ph.D.', 'Selasa', '13:00', '15:30', '2026/2027-1', 'Ruang Teori 4.2'),
+    ('c3333333-3333-3333-3333-333333333333', '0d000000-0000-0000-0000-00000000000d', 'TI-403', 'Mobile Application Development', 'Ahmad Fauzi, M.Cs.', 'Kamis', '10:00', '12:30', '2026/2027-1', 'Lab Mobile & IoT'),
+    ('c4444444-4444-4444-4444-444444444444', '0d000000-0000-0000-0000-00000000000d', 'TI-404', 'Software Quality Assurance & Testing', 'Prof. Bambang Setiawan, M.Sc.', 'Jumat', '08:30', '11:00', '2026/2027-1', 'Lab Rekayasa Perangkat Lunak')
+ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name,
     lecturer_name = EXCLUDED.lecturer_name;
 
@@ -37,6 +42,8 @@ VALUES
 ON CONFLICT (id) DO UPDATE
 SET full_name = EXCLUDED.full_name,
     role = EXCLUDED.role;
+UPDATE public.profiles SET class_id = '0d000000-0000-0000-0000-00000000000d', status = 'active'
+WHERE id::text LIKE 'a0000000-0000-0000-0000-0000000000%';
 
 -- 3. SEED COURSE SIPEN MAPPING
 INSERT INTO public.course_sipen (user_id, course_id)
@@ -96,23 +103,10 @@ VALUES
     )
 ON CONFLICT (id) DO NOTHING;
 
--- 5. SEED LECTURER GUEST ACCESS TOKENS
-INSERT INTO public.lecturer_tokens (id, token, course_id, label, expires_at, created_by)
-VALUES
-    (
-        'f1111111-1111-1111-1111-111111111111',
-        'demo-dosen-hendra-2026',
-        'c1111111-1111-1111-1111-111111111111',
-        'Link Presensi Dosen Dr. Hendra (Cloud Architecture)',
-        NOW() + INTERVAL '180 days',
-        'a0000000-0000-0000-0000-000000000003'
-    ),
-    (
-        'f2222222-2222-2222-2222-222222222222',
-        'demo-dosen-semua-matkul',
-        NULL, -- Akses Semua Matkul untuk Ketua Prodi / Koordinator
-        'Link Supervisi Koordinator Kelas Internasional',
-        NOW() + INTERVAL '180 days',
-        'a0000000-0000-0000-0000-000000000003'
-    )
-ON CONFLICT (token) DO NOTHING;
+-- 5. SEED DOSEN + LINK PRIBADI (token demo mudah ditebak: jangan di produksi)
+INSERT INTO public.lecturers (id, full_name, phone, access_token, created_by)
+VALUES ('d0000000-0000-0000-0000-000000000001', 'Dr. Hendra, S.Kom., M.T.', '081100000001',
+        repeat('de', 24), 'a0000000-0000-0000-0000-000000000003')
+ON CONFLICT (id) DO NOTHING;
+UPDATE public.courses SET lecturer_id = 'd0000000-0000-0000-0000-000000000001'
+WHERE id = 'c1111111-1111-1111-1111-111111111111';

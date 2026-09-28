@@ -1,6 +1,6 @@
 import { connection } from 'next/server';
 import { LecturerPortalView } from '@/components/lecturer/LecturerPortalView';
-import { fetchLecturerPortal } from '@/lib/lecturerPortal';
+import { fetchLecturerPortal } from '@/lib/publicPortal';
 
 export const metadata = {
   title: 'Portal Dosen - SIPPER-TI',

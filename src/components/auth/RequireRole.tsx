@@ -27,7 +27,7 @@ export function RequireRole({ roles, children }: RequireRoleProps) {
   const router = useRouter();
   const pathname = usePathname();
   const hydrated = useHydrated();
-  const { user, isAuthenticated, isReady } = useAuthStore();
+  const { user, isAuthenticated, isReady, mfaPending } = useAuthStore();
 
   const ready = hydrated && isReady;
   const loggedIn = Boolean(isAuthenticated && user);
@@ -38,8 +38,8 @@ export function RequireRole({ roles, children }: RequireRoleProps) {
     }
   }, [ready, loggedIn, pathname, router]);
 
-  // Akun pending dialihkan AuthBootstrap ke /menunggu
-  if (!ready || !loggedIn || !user || user.status !== 'active') return <PageLoader />;
+  // Akun pending / 2FA belum diverifikasi dialihkan AuthBootstrap
+  if (!ready || !loggedIn || !user || user.status !== 'active' || mfaPending) return <PageLoader />;
 
   const allowed =
     !roles || roles.some((r) => (r === 'admin' ? user.is_admin : r === user.role));

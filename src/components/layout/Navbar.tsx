@@ -8,9 +8,10 @@ import { toast } from '@/store/useToastStore';
 import type { UserRole } from '@/types/database';
 import { ThemeToggle } from './ThemeToggle';
 import { useHydrated } from '@/lib/useHydrated';
+import { STANDALONE_PREFIXES } from '@/lib/routes';
 import { navItemsFor } from '@/lib/nav';
 import { useNavBadges } from './useNavBadges';
-import { GraduationCap, LogOut, ChevronDown, KeyRound, X } from 'lucide-react';
+import { GraduationCap, LogOut, ChevronDown, KeyRound, ShieldCheck, X } from 'lucide-react';
 
 const ROLE_BADGE: Record<UserRole, string> = {
   mahasiswa: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25',
@@ -26,7 +27,7 @@ export const Navbar: React.FC = () => {
   const hydrated = useHydrated();
   const badges = useNavBadges();
 
-  if (pathname.startsWith('/dosen/')) return null; // portal dosen punya header sendiri
+  if (STANDALONE_PREFIXES.some((x) => pathname.startsWith(x))) return null; // portal publik punya header sendiri
 
   const handleLogout = async () => {
     await logout();
@@ -135,6 +136,17 @@ export const Navbar: React.FC = () => {
                       >
                         <KeyRound className="w-3.5 h-3.5" />
                         <span>Ganti Kata Sandi</span>
+                      </Link>
+                    )}
+
+                    {user.status === 'active' && (
+                      <Link
+                        href="/settings/keamanan"
+                        onClick={() => setIsAccountOpen(false)}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Keamanan (2FA)</span>
                       </Link>
                     )}
 

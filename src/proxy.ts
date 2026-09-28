@@ -53,6 +53,12 @@ export async function proxy(request: NextRequest) {
     return redirectTo('/login', pathname === '/' ? undefined : { next: pathname });
   }
 
+  // 2FA: akun dengan faktor terverifikasi wajib sesi aal2 (RLS juga menolak aal1)
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+    return redirectTo('/login', { mfa: '1', next: pathname });
+  }
+
   const { data: profile, error: profileError } = await supabase
     .rpc('get_my_profile')
     .maybeSingle<GuardProfile>();

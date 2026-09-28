@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, KeyRound, LayoutGrid } from 'lucide-react';
+import { ChevronRight, KeyRound, LayoutGrid, ShieldCheck } from 'lucide-react';
 import { RequireRole } from '@/components/auth/RequireRole';
 import { useAuthStore } from '@/store/useAuthStore';
 import { navItemsFor } from '@/lib/nav';
@@ -18,7 +18,7 @@ function ManageHub() {
     <div className="space-y-4 max-w-lg mx-auto pb-16">
       <PageHeader icon={LayoutGrid} eyebrow={klass?.name ?? 'Kelas'} title="Kelola" />
       <Card className="!p-2">
-        {[...items, ...(usesPassword ? [{ label: 'Ganti Kata Sandi', href: '/settings/password', icon: KeyRound }] : [])].map((item) => {
+        {[...items, { label: 'Keamanan (2FA)', href: '/settings/keamanan', icon: ShieldCheck }, ...(usesPassword ? [{ label: 'Ganti Kata Sandi', href: '/settings/password', icon: KeyRound }] : [])].map((item) => {
           const Icon = item.icon;
           const count = 'badge' in item && item.badge ? badges[item.badge] : 0;
           return (

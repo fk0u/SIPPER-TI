@@ -44,6 +44,13 @@ export interface ClassInfo {
   status: ClassStatus;
   created_by: string | null;
   reminder_template: string;
+  /** Jam operasional kirim pengingat (WITA), mis. "08:00:00". */
+  send_window_start: string;
+  send_window_end: string;
+  /** Mode uji: pengingat dirender & dicatat tanpa dikirim. */
+  reminder_dry_run: boolean;
+  /** Token papan jadwal publik; null = nonaktif. */
+  public_token: string | null;
   created_at: string;
 }
 
@@ -159,7 +166,7 @@ export interface WaSession {
   updated_at: string;
 }
 
-export type WaMessageStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'cancelled';
+export type WaMessageStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'cancelled' | 'dry_run';
 
 export interface WaMessage {
   id: number;
@@ -176,6 +183,28 @@ export interface WaMessage {
   sent_at: string | null;
   created_at: string;
   course?: Pick<Course, 'code' | 'name'> | null;
+}
+
+export interface WaGroup {
+  jid: string;
+  name: string;
+  participants: number;
+  synced_at: string;
+}
+
+export interface TemplateVersion {
+  id: number;
+  content: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface WaStats {
+  sent_today: number;
+  sent_total: number;
+  failed_total: number;
+  pending: number;
+  dry_run_total: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -212,5 +241,19 @@ export type LecturerPortalResult =
       lecturer: { full_name: string };
       courses: PortalCourse[];
       leaves: PortalLeave[];
+      holidays: Holiday[];
+    };
+
+// ---------------------------------------------------------------------------
+// Papan jadwal publik kelas (RPC `get_class_board`, tanpa login)
+// ---------------------------------------------------------------------------
+export type BoardCourse = PortalCourse & { lecturer_name: string | null };
+
+export type ClassBoardResult =
+  | { status: 'not_found' | 'unavailable' }
+  | {
+      status: 'ok';
+      class: Pick<ClassInfo, 'name' | 'program' | 'batch'>;
+      courses: BoardCourse[];
       holidays: Holiday[];
     };

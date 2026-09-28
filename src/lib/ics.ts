@@ -1,5 +1,5 @@
-// Kalender iCalendar (RFC 5545) jadwal mengajar dosen: satu event berulang mingguan per
-// mata kuliah, hari libur dikecualikan (EXDATE). Zona waktu kampus: WITA (UTC+8, tanpa DST).
+// Kalender iCalendar (RFC 5545) jadwal kuliah (portal dosen & papan jadwal kelas): satu event
+// berulang mingguan per mata kuliah, hari libur dikecualikan (EXDATE). Zona waktu: WITA (UTC+8, tanpa DST).
 import type { Holiday, PortalCourse } from '@/types/database';
 import { dayIndexID, parseISODate, toLocalISODate } from './date';
 
@@ -28,8 +28,8 @@ export function firstOccurrence(dow: number, today: string): string {
   return toLocalISODate(d);
 }
 
-export function buildLecturerIcs(
-  lecturerName: string,
+export function buildScheduleIcs(
+  calendarName: string,
   courses: PortalCourse[],
   holidays: Holiday[],
   now: Date = new Date()
@@ -39,10 +39,10 @@ export function buildLecturerIcs(
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//SIPPER-TI//Jadwal Dosen//ID',
+    'PRODID:-//SIPPER-TI//Jadwal Kuliah//ID',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${escapeText(`Jadwal Mengajar ${lecturerName}`)}`,
+    `X-WR-CALNAME:${escapeText(calendarName)}`,
     `X-WR-TIMEZONE:${TZID}`,
     'BEGIN:VTIMEZONE',
     `TZID:${TZID}`,

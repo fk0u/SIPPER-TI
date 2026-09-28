@@ -5,7 +5,7 @@ portal dosen → WhatsApp worker). Membuat akun uji NIM 9999…, lalu menghapusn
 Pemakaian (di server):  sudo python3 scripts/e2e-api.py
 Butuh: /project/supabase/.env (publishable key) dan akses docker compose untuk seed/cleanup.
 """
-import json, secrets, subprocess, sys, time, urllib.error, urllib.request
+import base64, hashlib, hmac, json, secrets, struct, subprocess, sys, time, urllib.error, urllib.request
 
 APP = "https://app.85-211-245-134.sslip.io"
 API = "https://api.85-211-245-134.sslip.io"
@@ -37,6 +37,14 @@ def http(method, url, body=None, token=None, raw=False):
             return e.code, json.loads(data)
         except ValueError:
             return e.code, data
+
+
+def totp(secret):
+    """Kode TOTP RFC 6238 (30 dtk, 6 digit) seperti aplikasi authenticator."""
+    key = base64.b32decode(secret + "=" * (-len(secret) % 8), casefold=True)
+    digest = hmac.new(key, struct.pack(">Q", int(time.time()) // 30), hashlib.sha1).digest()
+    o = digest[-1] & 0x0F
+    return f"{(struct.unpack('>I', digest[o:o + 4])[0] & 0x7FFFFFFF) % 1000000:06d}"
 
 
 def check(name, cond, detail=""):
@@ -115,7 +123,14 @@ def main():
     st2, prof_b = rpc("get_my_profile", {}, t_b)
     check("KM lama (Sipen) dikembalikan jadi mahasiswa", st in (200, 204) and prof_b[0]["role"] == "mahasiswa", prof_b)
 
-    # 4. Dosen + jadwal hari ini dengan pengingat H-0 jam 00:00 (langsung jatuh tempo)
+    # 4. Pengaturan SiPenDosa: jam operasional sepanjang hari + mode uji (dry run), template berversi
+    st, _ = rpc("update_reminder_settings", {"p_window_start": "00:00", "p_window_end": "23:59", "p_dry_run": True}, t_a)
+    check("KM atur jam operasional + mode uji", st in (200, 204))
+    st, _ = rpc("set_reminder_template", {"p_template": "Yth. {{.NamaDosen}}, pengingat {{.Matkul}} ({{.Kode}}) {{.Hari}} {{.JamMulai}} - kelas {{.Kelas}}."}, t_a)
+    st2, versions = http("GET", f"{API}/rest/v1/reminder_template_versions?select=id", token=t_a)
+    check("versi template lama tersimpan", st in (200, 204) and len(versions) == 1, versions)
+
+    # 4b. Dosen + jadwal hari ini dengan pengingat H-0 jam 00:00 (langsung jatuh tempo)
     st, lec_id = rpc("save_lecturer", {"p_id": None, "p_name": "Dr. Uji E2E", "p_phone": "0899-9999-0001", "p_email": None}, t_a)
     check("KM menambah dosen", st == 200 and isinstance(lec_id, str), lec_id)
     today = DAYS[time.localtime().tm_wday]
@@ -130,6 +145,11 @@ def main():
     # 5. Portal dosen + kalender
     st, lecs = rpc("get_class_lecturers", {}, t_a)
     token = next(l["access_token"] for l in lecs if l["id"] == lec_id)
+    st, new_token = rpc("regenerate_lecturer_token", {"p_id": lec_id}, t_a)
+    check("KM membuat link dosen baru", st == 200 and isinstance(new_token, str) and len(new_token) == 48 and new_token != token, new_token)
+    st, html = http("GET", f"{APP}/dosen/{token}", raw=True)
+    check("link dosen lama tidak berlaku", st == 200 and "Tidak Valid" in html, st)
+    token = new_token
     st, html = http("GET", f"{APP}/dosen/{token}", raw=True)
     check("portal dosen terbuka tanpa login", st == 200 and "Dr. Uji E2E" in html and "Uji Pengingat" in html, st)
     st, ics = http("GET", f"{APP}/dosen/{token}/calendar.ics", raw=True)
@@ -137,14 +157,32 @@ def main():
     st, _ = http("GET", f"{APP}/dosen/{'0' * 48}", raw=True)
     check("portal token salah tetap 200 dengan pesan", st == 200)
 
-    # 6. Penjadwal worker mengantrekan pengingat (maks ~70 dtk)
-    queued = ""
-    for _ in range(15):
-        queued = sql(f"SELECT status FROM wa_messages WHERE course_id = '{course[0]['id']}'")
-        if queued:
+    # 6. Penjadwal worker → mode uji: dirender dengan template kelas, dicatat tanpa dikirim (maks ~90 dtk)
+    row = ""
+    for _ in range(18):
+        row = sql(f"SELECT status || '|' || COALESCE(body, '') FROM wa_messages WHERE course_id = '{course[0]['id']}'")
+        if row.startswith("dry_run"):
             break
         time.sleep(5)
-    check("worker mengantrekan pengingat H-0", queued == "pending", queued or "(tidak ada)")
+    check("worker merender pengingat (mode uji, tidak dikirim)", row.startswith("dry_run|Yth. Dr. Uji E2E, pengingat Uji Pengingat (E2E-1)"), row or "(tidak ada)")
+    st, stats = rpc("wa_stats", {}, t_a)
+    check("statistik mencatat mode uji", st == 200 and stats.get("dry_run_total") == 1, stats)
+    msg_id = sql(f"SELECT id FROM wa_messages WHERE course_id = '{course[0]['id']}'")
+    st, _ = rpc("retry_wa_message", {"p_id": int(msg_id)}, t_a) if msg_id else (0, None)
+    check("kirim ulang pesan uji", st in (200, 204))
+    st, _ = rpc("wa_stats", {}, t_b)
+    check("mahasiswa tidak bisa membaca statistik WA", st >= 400)
+
+    # 6b. Papan jadwal publik kelas
+    st, board_token = rpc("set_class_board", {"p_action": "on"}, t_a)
+    check("KM mengaktifkan papan jadwal", st == 200 and isinstance(board_token, str) and len(board_token) == 48, board_token)
+    st, html = http("GET", f"{APP}/kelas/{board_token}", raw=True)
+    check("papan jadwal publik terbuka tanpa login", st == 200 and "Uji Pengingat" in html and "Kelas Uji E2E" in html, st)
+    st, ics = http("GET", f"{APP}/kelas/{board_token}/calendar.ics", raw=True)
+    check("kalender papan jadwal valid", st == 200 and "X-WR-CALNAME:Jadwal Kuliah Kelas Uji E2E" in ics, st)
+    rpc("set_class_board", {"p_action": "off"}, t_a)
+    st, _ = http("GET", f"{APP}/kelas/{board_token}/calendar.ics", raw=True)
+    check("papan jadwal nonaktif tidak bisa dibuka", st == 404, st)
 
     # 7. WhatsApp: minta QR → worker menulis QR dari server WhatsApp
     st, _ = rpc("wa_request", {"p_action": "on"}, t_a)
@@ -162,6 +200,22 @@ def main():
     check("putuskan WhatsApp", s and s[0]["state"] == "disconnected", s)
     st, s = http("GET", f"{API}/rest/v1/wa_sessions?select=state", token=t_b)
     check("mahasiswa tidak melihat sesi WA", s == [], s)
+
+    # 7b. 2FA (TOTP): daftar faktor → sesi password saja (aal1) kehilangan hak → verifikasi kode (aal2)
+    st, factor = http("POST", f"{API}/auth/v1/factors", {"factor_type": "totp", "friendly_name": "E2E"}, t_a)
+    fid, secret = factor.get("id"), (factor.get("totp") or {}).get("secret")
+    st, ch = http("POST", f"{API}/auth/v1/factors/{fid}/challenge", {}, t_a)
+    st, v = http("POST", f"{API}/auth/v1/factors/{fid}/verify", {"challenge_id": ch.get("id"), "code": totp(secret)}, t_a)
+    check("KM mengaktifkan 2FA", st == 200 and v.get("access_token"), v)
+    t_aal1 = login("9999000000001", pw_a)
+    st, rows = http("GET", f"{API}/rest/v1/courses?select=id", token=t_aal1)
+    check("2FA: login password saja tidak melihat data kelas", st == 200 and rows == [], rows)
+    st, _ = rpc("wa_stats", {}, t_aal1)
+    check("2FA: login password saja kehilangan hak KM", st >= 400)
+    st, ch = http("POST", f"{API}/auth/v1/factors/{fid}/challenge", {}, t_aal1)
+    st, v = http("POST", f"{API}/auth/v1/factors/{fid}/verify", {"challenge_id": ch.get("id"), "code": totp(secret)}, t_aal1)
+    st, rows = http("GET", f"{API}/rest/v1/courses?select=id", token=v.get("access_token"))
+    check("2FA: setelah kode benar hak kembali", st == 200 and len(rows) == 1, rows)
 
     # 8. Halaman aplikasi
     for path, want in [("/login", 200), ("/register", 200)]:

@@ -23,6 +23,8 @@ interface AuthState {
   mustChangePassword: boolean;
   /** Masuk dengan NIM + password (bukan Google), sehingga bisa mengganti password. */
   usesPassword: boolean;
+  /** Akun ber-2FA yang belum memasukkan kode: tanpa akses sampai verifikasi (aal2). */
+  mfaPending: boolean;
   error: string | null;
 
   /** Memuat sesi; `true` bila berhasil (termasuk tanpa sesi), `false` bila gagal. */
@@ -30,7 +32,8 @@ interface AuthState {
   /** Muat ulang profil, kelas & direktori (mis. setelah ACC anggota). */
   refresh: () => Promise<boolean>;
   loginWithGoogle: (nextPath?: string) => Promise<Result>;
-  loginWithNIM: (nim: string, password: string) => Promise<Result>;
+  loginWithNIM: (nim: string, password: string) => Promise<Result & { mfaRequired?: boolean }>;
+  verifyMfa: (code: string) => Promise<Result>;
   changePassword: (newPassword: string) => Promise<Result>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -48,7 +51,8 @@ export const useAuthStore = create<AuthState>()((set, get) => {
     const generation = ++sessionGeneration;
     try {
       const { profile, provider } = await repo.fetchSession();
-      const [klass, profiles] = profile
+      const mfaPending = profile ? await repo.mfaPending() : false;
+      const [klass, profiles] = profile && !mfaPending
         ? await Promise.all([
             profile.class_id ? repo.fetchClass(profile.class_id) : Promise.resolve(null),
             repo.fetchProfiles(),
@@ -61,6 +65,7 @@ export const useAuthStore = create<AuthState>()((set, get) => {
         klass,
         profiles,
         isAuthenticated: Boolean(profile),
+        mfaPending,
         usesPassword,
         mustChangePassword: Boolean(profile && usesPassword && !profile.is_password_changed),
         isReady: true,
@@ -83,6 +88,7 @@ export const useAuthStore = create<AuthState>()((set, get) => {
     isReady: false,
     mustChangePassword: false,
     usesPassword: false,
+    mfaPending: false,
     error: null,
 
     initialize: async () => {
@@ -132,7 +138,17 @@ export const useAuthStore = create<AuthState>()((set, get) => {
         return { success: false, error: errMsg };
       }
       set({ isLoading: false });
-      return { success: true };
+      return { success: true, mfaRequired: get().mfaPending };
+    },
+
+    verifyMfa: async (code: string) => {
+      try {
+        await repo.verifyLoginTotp(code);
+        await loadSession();
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: errorMessage(err, 'Verifikasi 2FA gagal.') };
+      }
     },
 
     changePassword: async (newPassword: string) => {
@@ -166,6 +182,7 @@ export const useAuthStore = create<AuthState>()((set, get) => {
         isAuthenticated: false,
         mustChangePassword: false,
         usesPassword: false,
+        mfaPending: false,
         error: null,
       });
     },

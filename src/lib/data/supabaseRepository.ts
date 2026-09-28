@@ -14,6 +14,9 @@ import type {
   LeaveType,
   Lecturer,
   OpenClass,
+  TemplateVersion,
+  WaGroup,
+  WaStats,
   PendingClass,
   Profile,
   ProfileSummary,
@@ -256,6 +259,28 @@ export const queueTestMessage = (recipient: string, body: string) =>
   rpc<number>('queue_test_message', { p_recipient: recipient, p_body: body });
 export const cancelWaMessage = (id: number) => rpc('cancel_wa_message', { p_id: id });
 export const setReminderTemplate = (template: string) => rpc('set_reminder_template', { p_template: template });
+export const updateReminderSettings = (windowStart: string, windowEnd: string, dryRun: boolean) =>
+  rpc('update_reminder_settings', { p_window_start: windowStart, p_window_end: windowEnd, p_dry_run: dryRun });
+export const retryWaMessage = (id: number) => rpc('retry_wa_message', { p_id: id });
+export const waStats = () => rpc<WaStats>('wa_stats');
+/** on = aktifkan papan jadwal publik, rotate = link baru, off = nonaktif. */
+export const setClassBoard = (action: 'on' | 'rotate' | 'off') => rpc<string | null>('set_class_board', { p_action: action });
+
+export async function fetchTemplateVersions(limit = 20): Promise<TemplateVersion[]> {
+  return unwrap(
+    await createClient()
+      .from('reminder_template_versions')
+      .select('id, content, created_by, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+  ) as TemplateVersion[];
+}
+
+export async function fetchWaGroups(): Promise<WaGroup[]> {
+  return unwrap(
+    await createClient().from('wa_groups').select('jid, name, participants, synced_at').order('name')
+  ) as WaGroup[];
+}
 
 // ---------------------------------------------------------------------------
 // Perizinan
@@ -335,4 +360,51 @@ export async function updateLeaveStatus(
       .eq('status', 'pending')
       .select(LEAVE_SELECT)
   ) as unknown as LeaveRequestWithRelations[];
+}
+
+// ---------------------------------------------------------------------------
+// 2FA (TOTP)
+// ---------------------------------------------------------------------------
+/** true bila akun punya 2FA tetapi sesi ini belum memasukkan kode (aal1 → butuh aal2). */
+export async function mfaPending(): Promise<boolean> {
+  const { data, error } = await createClient().auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error || !data) return false;
+  return data.nextLevel === 'aal2' && data.currentLevel !== 'aal2';
+}
+
+export async function listTotpFactors() {
+  const { data, error } = await createClient().auth.mfa.listFactors();
+  if (error) throw new Error(error.message);
+  return data.all.filter((f) => f.factor_type === 'totp');
+}
+
+/** Mulai pendaftaran 2FA: mengembalikan QR (SVG data URI) & secret. Faktor lama yang belum diverifikasi dibersihkan. */
+export async function enrollTotp() {
+  const supabase = createClient();
+  for (const f of await listTotpFactors()) {
+    if (f.status !== 'verified') await supabase.auth.mfa.unenroll({ factorId: f.id });
+  }
+  const { data, error } = await supabase.auth.mfa.enroll({
+    factorType: 'totp',
+    friendlyName: `Authenticator ${new Date().toISOString().slice(0, 16)}`,
+  });
+  if (error) throw new Error(error.message);
+  return { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
+}
+
+export async function verifyTotp(factorId: string, code: string): Promise<void> {
+  const { error } = await createClient().auth.mfa.challengeAndVerify({ factorId, code: code.trim() });
+  if (error) throw new Error(/invalid|expired/i.test(error.message) ? 'Kode salah atau kedaluwarsa.' : error.message);
+}
+
+/** Verifikasi login dengan faktor TOTP terverifikasi pertama. */
+export async function verifyLoginTotp(code: string): Promise<void> {
+  const factor = (await listTotpFactors()).find((f) => f.status === 'verified');
+  if (!factor) throw new Error('Faktor 2FA tidak ditemukan.');
+  await verifyTotp(factor.id, code);
+}
+
+export async function unenrollFactor(factorId: string): Promise<void> {
+  const { error } = await createClient().auth.mfa.unenroll({ factorId });
+  if (error) throw new Error(error.message);
 }

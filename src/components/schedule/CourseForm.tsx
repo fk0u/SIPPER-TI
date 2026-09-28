@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BellRing, Loader2, Plus, Save, X } from 'lucide-react';
 import * as repo from '@/lib/data/supabaseRepository';
 import { toast } from '@/store/useToastStore';
 import { DAY_NAMES_MON_FIRST } from '@/lib/date';
 import { Card, btnGhost, btnPrimary, errorText, inputCls, labelCls } from '@/components/ui/kit';
-import type { Course, Lecturer, ProfileSummary } from '@/types/database';
+import type { Course, Lecturer, ProfileSummary, WaGroup } from '@/types/database';
 
 interface CourseFormProps {
   classId: string;
@@ -15,6 +15,8 @@ interface CourseFormProps {
   sipenMembers: ProfileSummary[];
   assignedSipen: string[];
   canAssignSipen: boolean;
+  /** Jam operasional kirim kelas (SiPenDosa). */
+  sendWindow: { start: string; end: string };
   onLecturersChanged: () => Promise<void>;
   onSaved: () => void;
   onCancel: () => void;
@@ -29,6 +31,7 @@ export function CourseForm({
   sipenMembers,
   assignedSipen,
   canAssignSipen,
+  sendWindow,
   onLecturersChanged,
   onSaved,
   onCancel,
@@ -51,6 +54,12 @@ export function CourseForm({
   const [sipen, setSipen] = useState<string[]>(assignedSipen);
   const [newLecturer, setNewLecturer] = useState<{ name: string; phone: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [groups, setGroups] = useState<WaGroup[]>([]);
+
+  // Grup yang diikuti nomor WA kelas (disinkron worker) untuk dipilih sebagai tujuan
+  useEffect(() => {
+    repo.fetchWaGroups().then(setGroups, () => setGroups([]));
+  }, []);
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -202,8 +211,19 @@ export function CourseForm({
               </div>
               <div className="sm:col-span-3">
                 <label className={labelCls}>Tujuan lain (opsional)</label>
-                <input className={`${inputCls} font-mono`} value={form.reminder_target} onChange={(e) => set('reminder_target', e.target.value)} placeholder="Kosong = WA dosen · atau 08xx / ID grup" />
+                <input className={`${inputCls} font-mono`} list="wa-groups" value={form.reminder_target} onChange={(e) => set('reminder_target', e.target.value)}
+                  placeholder={groups.length ? 'Kosong = WA dosen · pilih grup / 08xx' : 'Kosong = WA dosen · atau 08xx / ID grup'} />
+                <datalist id="wa-groups">
+                  {groups.map((g) => <option key={g.jid} value={g.jid} label={`👥 ${g.name} (${g.participants})`} />)}
+                </datalist>
               </div>
+              {(hhmm(form.reminder_time) < hhmm(sendWindow.start) || hhmm(form.reminder_time) > hhmm(sendWindow.end)) && (
+                <p className="sm:col-span-6 text-[11px] text-amber-700 dark:text-amber-400">
+                  {hhmm(form.reminder_time) > hhmm(sendWindow.end)
+                    ? `Jam kirim di luar jam operasional kelas (${hhmm(sendWindow.start)}–${hhmm(sendWindow.end)}): pengingat tidak akan terkirim. Ubah di menu WhatsApp.`
+                    : `Dikirim mulai ${hhmm(sendWindow.start)} (awal jam operasional kelas).`}
+                </p>
+              )}
               <div className="sm:col-span-6">
                 <label className={labelCls}>Tautan grup / kelas online (opsional)</label>
                 <input className={inputCls} value={form.link_group} onChange={(e) => set('link_group', e.target.value)} placeholder="https://chat.whatsapp.com/... atau Zoom" />

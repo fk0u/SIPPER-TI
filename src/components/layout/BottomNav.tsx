@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useHydrated } from '@/lib/useHydrated';
+import { STANDALONE_PREFIXES } from '@/lib/routes';
 import { KELOLA_ITEM, navItemsFor } from '@/lib/nav';
 import { useNavBadges } from './useNavBadges';
 
@@ -15,7 +16,7 @@ export const BottomNav: React.FC = () => {
   const badges = useNavBadges();
 
   if (!hydrated || !isAuthenticated || !user || user.status !== 'active') return null;
-  if (pathname.startsWith('/dosen/')) return null;
+  if (STANDALONE_PREFIXES.some((x) => pathname.startsWith(x))) return null; // portal publik punya header sendiri
 
   const all = navItemsFor(user);
   const manage = all.filter((i) => i.manage);

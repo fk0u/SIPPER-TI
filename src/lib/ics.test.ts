@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLecturerIcs, firstOccurrence } from './ics';
+import { buildScheduleIcs, firstOccurrence } from './ics';
 import type { PortalCourse } from '@/types/database';
 
 const course = (over: Partial<PortalCourse> = {}): PortalCourse => ({
@@ -24,9 +24,12 @@ describe('firstOccurrence', () => {
   });
 });
 
-describe('buildLecturerIcs', () => {
+describe('buildScheduleIcs', () => {
+  it('nama kalender', () => {
+    expect(buildScheduleIcs('Jadwal Kelas A', [], [])).toContain('X-WR-CALNAME:Jadwal Kelas A');
+  });
   const now = new Date(2026, 8, 28, 10, 0); // Senin 28 Sep 2026
-  const ics = buildLecturerIcs('Dr. Hendra', [course(), course({ id: 'c2', day_of_week: null })], [
+  const ics = buildScheduleIcs('Jadwal Mengajar Dr. Hendra', [course(), course({ id: 'c2', day_of_week: null })], [
     { date: '2026-10-05', description: 'Libur' }, // Senin → dikecualikan
     { date: '2026-10-06', description: 'Libur Selasa' }, // bukan hari kuliah
   ], now);

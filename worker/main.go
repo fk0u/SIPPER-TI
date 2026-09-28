@@ -88,8 +88,10 @@ func main() {
 
 	sessions := NewSessions(db, container)
 	sender := NewSender(db, sessions, loc)
+	// Pesan "sending" yang tertinggal hanya dipulihkan di sini; tanpa itu pesan macet selamanya
 	if err := sender.Recover(ctx); err != nil {
-		slog.Error("gagal memulihkan antrean", "err", err)
+		slog.Error("gagal memulihkan antrean, berhenti (systemd akan memulai ulang)", "err", err)
+		os.Exit(1)
 	}
 	slog.Info("sipper-worker berjalan")
 

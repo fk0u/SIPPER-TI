@@ -18,6 +18,7 @@ import (
 const (
 	maxAttempts   = 3
 	pendingExpiry = 12 * time.Hour // pengingat basi tidak dikirim lagi
+	maxBodyRunes  = 4000           // sama dengan CHECK wa_messages.body
 )
 
 // Sender mengirim antrean wa_messages per kelas, satu pesan per kelas per giliran,
@@ -70,9 +71,14 @@ func (s *Sender) Tick(ctx context.Context) {
 	var classes []classQueue
 	for rows.Next() {
 		var q classQueue
-		if rows.Scan(&q.id, &q.dryRun) == nil {
-			classes = append(classes, q)
+		if err := rows.Scan(&q.id, &q.dryRun); err != nil {
+			slog.Error("gagal membaca antrean", "err", err)
+			continue
 		}
+		classes = append(classes, q)
+	}
+	if err := rows.Err(); err != nil {
+		slog.Error("antrean terbaca sebagian", "err", err)
 	}
 	rows.Close()
 
@@ -117,6 +123,13 @@ func (s *Sender) sendOne(ctx context.Context, classID string, cli *whatsmeow.Cli
 			s.fail(ctx, m.id, err.Error(), true)
 			return true
 		}
+	}
+
+	// Batas kolom body (CHECK <= 4000): tolak sebelum terkirim, bukan gagal saat mencatat
+	if len([]rune(m.body.String)) > maxBodyRunes {
+		s.fail(ctx, m.id, fmt.Sprintf("Isi pesan terlalu panjang (%d karakter, maks %d). Persingkat template.",
+			len([]rune(m.body.String)), maxBodyRunes), true)
+		return true
 	}
 
 	// Mode uji: pengingat dirender & dicatat, tidak dikirim (pesan uji manual tetap dikirim)

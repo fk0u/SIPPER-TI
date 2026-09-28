@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -24,26 +26,35 @@ func TestFormatJID(t *testing.T) {
 	}
 }
 
-// Template bawaan di migrasi harus tetap bisa dirender worker.
-const defaultTemplate = `Yth. Bapak/Ibu {{.NamaDosen}},
-{{.Matkul}} {{.Hari}}, {{.Tanggal}} {{.JamMulai}}-{{.JamSelesai}} di {{.Lokasi}}
-{{if .LinkGroup}}Tautan: {{.LinkGroup}}
-{{end}}{{if .NamaMahasiswa}}Ketua Kelas: {{.NamaMahasiswa}}{{if .NIM}} ({{.NIM}}){{end}}{{else}}Mahasiswa {{.Kelas}}{{end}}`
+// defaultTemplate membaca template bawaan kolom classes.reminder_template dari migrasi,
+// sehingga perubahan template bawaan yang tidak bisa dirender worker ikut tertangkap.
+func defaultTemplate(t *testing.T) string {
+	t.Helper()
+	src, err := os.ReadFile("../supabase/migrations/20260928_multi_class_platform.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`(?s)\$tpl\$(.*?)\$tpl\$`).FindSubmatch(src)
+	if m == nil {
+		t.Fatal("template bawaan tidak ditemukan di migrasi")
+	}
+	return string(m[1])
+}
 
 func TestRenderTemplate(t *testing.T) {
-	out, err := renderTemplate(defaultTemplate, TemplateContext{
+	out, err := renderTemplate(defaultTemplate(t), TemplateContext{
 		NamaDosen: "Dr. Hendra", Matkul: "Cloud", Hari: "Senin", Tanggal: formatIndonesianDate(time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)),
 		JamMulai: "08:00", JamSelesai: "09:40", Lokasi: "Lab 3", Kelas: "TI Intl", NamaMahasiswa: "Budi", NIM: "123",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Yth. Bapak/Ibu Dr. Hendra", "Senin, 5 Oktober 2026", "Ketua Kelas: Budi (123)"} {
+	for _, want := range []string{"Yth. Bapak/Ibu Dr. Hendra", "kelas TI Intl", "Senin, 5 Oktober 2026", "Ketua Kelas: Budi (123)"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("hasil tidak memuat %q:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "Tautan:") {
+	if strings.Contains(out, "Tautan Kelas") {
 		t.Error("blok LinkGroup kosong harus hilang")
 	}
 	if _, err := renderTemplate("{{.Salah", TemplateContext{}); err == nil {

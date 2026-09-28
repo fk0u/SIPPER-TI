@@ -22,7 +22,8 @@ VALUES
     ('c3333333-3333-3333-3333-333333333333', '0d000000-0000-0000-0000-00000000000d', 'TI-403', 'Mobile Application Development', 'Ahmad Fauzi, M.Cs.', 'Kamis', '10:00', '12:30', '2026/2027-1', 'Lab Mobile & IoT'),
     ('c4444444-4444-4444-4444-444444444444', '0d000000-0000-0000-0000-00000000000d', 'TI-404', 'Software Quality Assurance & Testing', 'Prof. Bambang Setiawan, M.Sc.', 'Jumat', '08:30', '11:00', '2026/2027-1', 'Lab Rekayasa Perangkat Lunak')
 ON CONFLICT (id) DO UPDATE
-SET name = EXCLUDED.name,
+SET class_id = EXCLUDED.class_id,
+    name = EXCLUDED.name,
     lecturer_name = EXCLUDED.lecturer_name;
 
 -- 2. SEED SAMPLE PROFILES

@@ -115,9 +115,11 @@ SELECT pg_temp.expect_rows('mengajukan kelas baru C',
 SELECT pg_temp.expect_value('kelas baru pending, pengaju pending sebagai mahasiswa',
     $q$SELECT c.status || ':' || p.status || ':' || p.role FROM profiles p JOIN classes c ON c.id = p.class_id
        WHERE p.id = 'a0000000-0000-0000-0000-000000000011'$q$, 'pending:pending:mahasiswa');
-SELECT pg_temp.expect_error('nama kelas duplikat ditolak',
+SELECT pg_temp.expect_error('nama kelas duplikat ditolak dengan pesan jelas',
     $q$INSERT INTO auth.users (email, raw_user_meta_data) VALUES ('2611100000013@umkt.ac.id', '{"new_class_name":"  kelas a "}')$q$,
-    'duplicate|unique');
+    'sudah dipakai');
+SELECT pg_temp.expect_error('signup tanpa email ditolak jelas',
+    $q$INSERT INTO auth.users (email) VALUES (NULL)$q$, 'umkt');
 -- Pengajuan kelas lain (untuk uji tolak admin) dan pendaftar lain (untuk uji hapus KM)
 INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
  ('a0000000-0000-0000-0000-000000000013', '2611100000014@umkt.ac.id', '{"new_class_name":"Kelas D"}'),
@@ -274,8 +276,10 @@ SELECT pg_temp.expect_error('sipen menulis status sesi WA langsung',
     $q$UPDATE wa_sessions SET state = 'connected'$q$, 'permission denied');
 SELECT pg_temp.expect_rows('sipen kirim pengingat sekarang',
     $q$SELECT queue_reminder_now('c1111111-1111-1111-1111-111111111111')$q$, 1);
-SELECT pg_temp.expect_value('tanggal pengingat = Senin berikutnya',
-    $q$SELECT extract(dow FROM lecture_date)::text FROM wa_messages WHERE course_id = 'c1111111-1111-1111-1111-111111111111'$q$, '1');
+SELECT pg_temp.expect_value('tanggal pengingat = Senin berikutnya (hari ini bila Senin, WITA)',
+    $q$SELECT (lecture_date = today + (8 - extract(isodow FROM today)::int) % 7)::text
+       FROM wa_messages, (SELECT (now() AT TIME ZONE 'Asia/Makassar')::date AS today) t
+       WHERE course_id = 'c1111111-1111-1111-1111-111111111111'$q$, 'true');
 SELECT pg_temp.expect_error('pengingat untuk matkul tanpa dosen',
     $q$SELECT queue_reminder_now('c2222222-2222-2222-2222-222222222222')$q$, 'Pilih dosen');
 SELECT pg_temp.expect_error('pengingat untuk matkul kelas lain',
@@ -436,6 +440,39 @@ RESET ROLE;
 SELECT pg_temp.act_as(NULL);
 DELETE FROM auth.mfa_factors;
 SET ROLE authenticated;
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000007');
+
+-- ---------------------------------------------------------------------------
+-- Perbaikan review PR #4
+-- ---------------------------------------------------------------------------
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000004'); -- Dinda (Sipen)
+SELECT pg_temp.expect_rows('sipen membuat dosen',
+    $q$SELECT save_lecturer(NULL, 'Dr. Dinda Made', '0813-7777-8888', NULL)$q$, 1);
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000003'); -- Budi (KM)
+SELECT pg_temp.expect_rows('KM menugaskan Sipen secara atomik',
+    $q$SELECT set_course_sipen('c1111111-1111-1111-1111-111111111111',
+       ARRAY['a0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000004']::uuid[])$q$, 1);
+SELECT pg_temp.expect_value('penugasan Sipen tersimpan',
+    $q$SELECT count(*)::text FROM course_sipen WHERE course_id = 'c1111111-1111-1111-1111-111111111111'$q$, '2');
+SELECT pg_temp.expect_error('penugasan mahasiswa kelas lain ditolak utuh',
+    $q$SELECT set_course_sipen('c1111111-1111-1111-1111-111111111111',
+       ARRAY['a0000000-0000-0000-0000-000000000006']::uuid[])$q$, 'Hanya Sipen');
+SELECT pg_temp.expect_value('penugasan lama tetap utuh setelah gagal',
+    $q$SELECT count(*)::text FROM course_sipen WHERE course_id = 'c1111111-1111-1111-1111-111111111111'$q$, '2');
+SELECT pg_temp.expect_rows('KM menurunkan Dinda jadi mahasiswa',
+    $q$SELECT set_member_role('a0000000-0000-0000-0000-000000000004', 'mahasiswa')$q$, 1);
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000004');
+SELECT pg_temp.expect_error('pembuat dosen yang bukan staf lagi tidak bisa mengganti link',
+    $q$SELECT regenerate_lecturer_token((SELECT id FROM lecturers WHERE full_name = 'Dr. Dinda Made'))$q$, 'berwenang');
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002'); -- Sarah (Sipen)
+SELECT pg_temp.expect_error('sipen tidak bisa menugaskan Sipen',
+    $q$SELECT set_course_sipen('c1111111-1111-1111-1111-111111111111', ARRAY[]::uuid[])$q$, 'Hanya KM');
+SELECT pg_temp.expect_error('template dengan if tanpa end ditolak',
+    $q$SELECT set_reminder_template('Yth. {{.NamaDosen}} {{if .LinkGroup}}tautan')$q$, 'ditutup');
+SELECT pg_temp.expect_error('template dengan variabel tak dikenal ditolak',
+    $q$SELECT set_reminder_template('Yth. {{.NamaDosenn}}')$q$, 'tidak dikenal');
+SELECT pg_temp.expect_rows('template dengan titik di teks biasa diterima',
+    $q$SELECT set_reminder_template('Yth. Dr. Budi, M.T. di chat.whatsapp.com {{if .LinkGroup}}{{.LinkGroup}}{{else if .Lokasi}}{{.Lokasi}}{{end}}')$q$, 1);
 SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000007');
 
 RESET ROLE;

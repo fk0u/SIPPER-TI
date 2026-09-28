@@ -121,7 +121,8 @@ npm run dev                  # http://localhost:3000
 Aplikasi butuh Supabase (tidak ada lagi mode demo). Paling mudah memakai Supabase server lewat SSH tunnel
 (`ssh -L 8000:127.0.0.1:8000 …` lalu `NEXT_PUBLIC_SUPABASE_URL=http://localhost:8000`) atau Supabase CLI lokal.
 Migrasi dijalankan berurutan: `20260921_initial_schema.sql` → `20260927_security_hardening.sql` → `20260928_multi_class_platform.sql` → `20260929_km_handover.sql` → `20260930_sipendosa_parity.sql`.
-Data contoh (staging saja): `CLASS_ID` kosong + `node scripts/seed-auth-users.mjs`, lalu `supabase/seed.sql`.
+Data contoh (staging saja): isi juga `SUPABASE_SECRET_KEY` di `.env.local`, jalankan `node --env-file=.env.local scripts/seed-auth-users.mjs` (tanpa `CLASS_ID` = kelas demo, dibuat otomatis), lalu `supabase/seed.sql`.
+Roster sungguhan: `CLASS_ID=<uuid kelas aktif> node --env-file=.env.local scripts/seed-auth-users.mjs roster.csv`.
 
 ### Kualitas & pengujian
 ```bash

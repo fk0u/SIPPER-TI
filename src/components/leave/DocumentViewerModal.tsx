@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { LeaveAttachment } from '@/types/database';
 import { useLeaveStore } from '@/store/useLeaveStore';
-import { isDemoMode } from '@/store/useAuthStore';
 import { formatFileSize } from '@/lib/attachments';
 import { X, ExternalLink, FileText, Download, ZoomIn, ZoomOut, Loader2, EyeOff } from 'lucide-react';
 
@@ -132,10 +131,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             <div className="flex flex-col items-center gap-2 text-center text-xs text-slate-500 dark:text-slate-400 max-w-sm">
               <EyeOff className="w-6 h-6" />
               <span>
-                {resolveError ??
-                  (isDemoMode()
-                    ? 'Pratinjau tidak tersedia. Pada mode demo, berkas berukuran besar hanya disimpan metadatanya.'
-                    : 'Berkas lampiran tidak ditemukan di penyimpanan. Minta pengaju mengunggah ulang lampirannya.')}
+                {resolveError ?? 'Berkas lampiran tidak ditemukan di penyimpanan. Minta pengaju mengunggah ulang lampirannya.'}
               </span>
             </div>
           ) : isPdf ? (

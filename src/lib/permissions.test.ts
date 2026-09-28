@@ -1,19 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import {
-  canManageTokens,
-  canSubmitFor,
-  canVerifyRequest,
-  canViewRequest,
-  getTokenState,
-} from './permissions';
-import { INITIAL_COURSE_SIPEN } from './mockData';
+import { canSubmitFor, canVerifyRequest, canViewRequest, isSupervisor } from './permissions';
+import type { CourseSipen } from '@/types/database';
 
 const CLOUD = 'c1111111-1111-1111-1111-111111111111';
 const ML = 'c2222222-2222-2222-2222-222222222222';
-const rian = { id: 'a0000000-0000-0000-0000-000000000001', role: 'mahasiswa' as const };
-const sarah = { id: 'a0000000-0000-0000-0000-000000000002', role: 'sipen' as const }; // Cloud & SQA
-const budi = { id: 'a0000000-0000-0000-0000-000000000003', role: 'km' as const };
-const cs = INITIAL_COURSE_SIPEN;
+const active = 'active' as const;
+const rian = { id: 'a0000000-0000-0000-0000-000000000001', role: 'mahasiswa' as const, status: active };
+const sarah = { id: 'a0000000-0000-0000-0000-000000000002', role: 'sipen' as const, status: active }; // Cloud
+const budi = { id: 'a0000000-0000-0000-0000-000000000003', role: 'km' as const, status: active };
+const cs: CourseSipen[] = [{ id: 'cs1', user_id: sarah.id, course_id: CLOUD, created_at: '' }];
 
 const req = (over: Partial<{ student_id: string; created_by: string; course_id: string; status: 'pending' | 'approved' | 'rejected' }> = {}) => ({
   student_id: rian.id,
@@ -69,16 +64,11 @@ describe('canSubmitFor', () => {
   });
 });
 
-describe('tokens', () => {
-  it('hanya KM yang mengelola token', () => {
-    expect(canManageTokens(budi)).toBe(true);
-    expect(canManageTokens(sarah)).toBe(false);
-    expect(canManageTokens(rian)).toBe(false);
-  });
-  it('status token', () => {
-    const now = new Date('2026-09-27T00:00:00Z');
-    expect(getTokenState({ expires_at: '2027-01-01T00:00:00Z', revoked_at: null }, now)).toBe('active');
-    expect(getTokenState({ expires_at: '2026-01-01T00:00:00Z', revoked_at: null }, now)).toBe('expired');
-    expect(getTokenState({ expires_at: null, revoked_at: '2026-09-01T00:00:00Z' }, now)).toBe('revoked');
+describe('akun pending', () => {
+  const pendingKm = { ...budi, status: 'pending' as const };
+  it('tidak punya hak staf walau role KM', () => {
+    expect(isSupervisor(pendingKm)).toBe(false);
+    expect(canVerifyRequest(pendingKm, req({ student_id: 'x' }), cs)).toBe(false);
+    expect(canSubmitFor(pendingKm, pendingKm.id, CLOUD, cs)).toBe(false);
   });
 });

@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore, isDemoMode } from '@/store/useAuthStore';
+import Link from 'next/link';
+import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { ShinyText } from '@/components/reactbits/ShinyText';
@@ -10,7 +11,7 @@ import {
   Lock,
   AlertCircle,
   GraduationCap,
-  Sparkles,
+  UserPlus,
   Eye,
   EyeOff,
   ArrowRight,
@@ -29,12 +30,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
     error,
     clearError,
     isLoading,
-    switchUser,
-    profiles,
     isAuthenticated,
     isReady,
   } = useAuthStore();
-  const demo = isDemoMode();
+  // Google SSO butuh OAuth client + domain; aktifkan dengan NEXT_PUBLIC_GOOGLE_SSO=true
+  const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_SSO === 'true';
 
   const [nim, setNim] = useState('');
   const [password, setPassword] = useState('');
@@ -50,13 +50,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
     setLocalError(null);
     clearError();
     const res = await loginWithGoogle(nextPath);
-    if (res.success) {
-      // Mode live: browser dialihkan ke Google; mode demo: langsung masuk
-      if (demo) {
-        toast.success('Login SSO Kampus berhasil!');
-        router.push(nextPath);
-      }
-    } else {
+    if (!res.success) {
       toast.error('Gagal masuk dengan akun Google Kampus.');
     }
   };
@@ -85,12 +79,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
     }
   };
 
-  const handleQuickDemo = (userId: string) => {
-    switchUser(userId);
-    const target = profiles.find((p) => p.id === userId);
-    toast.success(`Beralih ke profil demo: ${target?.full_name || 'Demo'}!`);
-    router.push(nextPath);
-  };
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
@@ -109,7 +97,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
           <ShinyText text="SIPPER-TI" />
         </h1>
         <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
-          Sistem Informasi Perizinan & Presensi Kelas Internasional Teknik Informatika UMKT
+          Perizinan, jadwal & pengingat kuliah untuk kelas-kelas di UMKT
         </p>
       </div>
 
@@ -125,6 +113,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
       <div className="doppelrand-shell">
         <div className="doppelrand-core p-6 sm:p-7 space-y-5">
           
+          {googleEnabled && (<>
           {/* Option 1: Google SSO (@umkt.ac.id) */}
           <div className="space-y-2.5">
             <button
@@ -170,8 +159,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
             </span>
             <div className="border-t border-slate-200/80 dark:border-white/10 w-full" />
           </div>
+          </>)}
 
-          {/* Option 2: NIM & Password Fallback */}
+          {/* NIM & Password */}
           <form onSubmit={handleNimLogin} className="space-y-3.5">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
@@ -191,7 +181,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Kata Sandi
                 </label>
-                <span className="text-[10px] text-slate-400 font-mono">Default: NIM</span>
+                <span className="text-[10px] text-slate-400 font-mono">Akun dari KM: default NIM</span>
               </div>
               <div className="relative">
                 <input
@@ -223,59 +213,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
         </div>
       </div>
 
-      {/* Quick Demo Switcher Cards (mode demo saja) */}
-      {demo && (
-      <div className="liquid-glass rounded-2xl p-4 space-y-2.5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Akses Cepat Profil Demo:
-          </span>
-          <span className="text-[10px] text-slate-400 font-mono">1-Klik Langsung</span>
+      {/* Registrasi mandiri */}
+      <div className="liquid-glass rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-slate-900 dark:text-white">Belum punya akun?</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Daftar dengan NIM, pilih kelas, lalu tunggu ACC Sipen / KM.</p>
         </div>
-
-        <div className="grid grid-cols-3 gap-2 text-left">
-          <button
-            type="button"
-            onClick={() => handleQuickDemo('a0000000-0000-0000-0000-000000000001')}
-            className="p-2.5 rounded-xl bg-slate-100/80 dark:bg-white/[0.04] hover:bg-slate-200/80 dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/5 hover:border-blue-500/40 transition group active:scale-95"
-          >
-            <span className="text-[9px] font-mono text-blue-600 dark:text-blue-400 block uppercase font-semibold">
-              Mahasiswa
-            </span>
-            <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate group-hover:text-blue-600 dark:group-hover:text-blue-300 mt-0.5">
-              Rian Pratama
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleQuickDemo('a0000000-0000-0000-0000-000000000002')}
-            className="p-2.5 rounded-xl bg-slate-100/80 dark:bg-white/[0.04] hover:bg-slate-200/80 dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/5 hover:border-emerald-500/40 transition group active:scale-95"
-          >
-            <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 block uppercase font-semibold">
-              Sipen Matkul
-            </span>
-            <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-300 mt-0.5">
-              Sarah Amalia
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleQuickDemo('a0000000-0000-0000-0000-000000000003')}
-            className="p-2.5 rounded-xl bg-slate-100/80 dark:bg-white/[0.04] hover:bg-slate-200/80 dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/5 hover:border-purple-500/40 transition group active:scale-95"
-          >
-            <span className="text-[9px] font-mono text-purple-600 dark:text-purple-400 block uppercase font-semibold">
-              Ketua KM
-            </span>
-            <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate group-hover:text-purple-600 dark:group-hover:text-purple-300 mt-0.5">
-              Budi Santoso
-            </span>
-          </button>
-        </div>
+        <Link
+          href="/register"
+          className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold transition active:scale-95"
+        >
+          <UserPlus className="w-3.5 h-3.5" /> Daftar
+        </Link>
       </div>
-
-      )}
     </div>
   );
 };

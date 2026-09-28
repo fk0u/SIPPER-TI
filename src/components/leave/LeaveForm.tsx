@@ -45,7 +45,7 @@ export const LeaveForm: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const canUseProxy = canUseProxyFor(user);
-  const availableStudents = profiles.filter((p) => p.id !== user?.id);
+  const availableStudents = profiles.filter((p) => p.id !== user?.id && p.status === 'active');
   // Sipen hanya boleh mengajukan proxy untuk mata kuliah yang dikelolanya
   const proxyCourses =
     user?.role === 'km' ? courses : courses.filter((c) => isSipenOf(user, c.id, courseSipen));

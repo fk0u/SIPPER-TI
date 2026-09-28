@@ -33,6 +33,14 @@ export function isDateInRange(date: string, start: string, end: string): boolean
 }
 
 const DAY_NAMES_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as const;
+/** Urutan tampilan jadwal kuliah (Senin dulu). Selaras dengan `day_index()` di database. */
+export const DAY_NAMES_MON_FIRST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'] as const;
+
+/** Indeks hari (0 = Minggu) dari nama hari Indonesia, -1 bila tidak dikenal. */
+export function dayIndexID(name: string | null | undefined): number {
+  const n = (name ?? '').trim().replace(/'/g, '').toLowerCase();
+  return DAY_NAMES_ID.findIndex((d) => d.toLowerCase() === n);
+}
 
 export function dayNameID(now: Date = new Date()): string {
   return DAY_NAMES_ID[now.getDay()];

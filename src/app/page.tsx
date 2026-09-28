@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useAuthStore, isDemoMode } from '@/store/useAuthStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { LeaveCard } from '@/components/leave/LeaveCard';
 import { LeaveStatus } from '@/types/database';
@@ -20,7 +20,6 @@ import {
   KeyRound,
   GraduationCap,
   Sparkles,
-  RotateCcw,
   ArrowRight,
   Layers,
   Calendar,
@@ -32,7 +31,7 @@ type FeedTab = 'all' | 'my' | LeaveStatus;
 export default function HomePage() {
   const hydrated = useHydrated();
   const { user, isAuthenticated, isReady } = useAuthStore();
-  const { requests: allRequests, courses, courseSipen, isLoaded, loadError, resetToInitial } = useLeaveStore();
+  const { requests: allRequests, courses, courseSipen, isLoaded, loadError } = useLeaveStore();
 
   const [activeTab, setActiveTab] = useState<FeedTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,7 +51,7 @@ export default function HomePage() {
                 <ShinyText text="SIPPER-TI Portal" />
               </h1>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Sistem Informasi Perizinan & Presensi Kelas Internasional Teknik Informatika Universitas Muhammadiyah Kalimantan Timur.
+                Perizinan, jadwal kuliah & pengingat dosen untuk kelas-kelas di Universitas Muhammadiyah Kalimantan Timur.
               </p>
             </div>
             <Link
@@ -164,12 +163,12 @@ export default function HomePage() {
 
 {isSupervisor && (
               <Link
-                href="/admin/tokens"
+                href="/admin/dosen"
                 className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/80 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-purple-700 dark:text-purple-400 border border-purple-500/25 text-xs font-semibold transition active:scale-95 flex-1 sm:flex-initial"
                 title="Kelola Link Akses Dosen"
               >
                 <KeyRound className="w-4 h-4 shrink-0" />
-                <span>Link Dosen</span>
+                <span>Dosen</span>
               </Link>
               )}
             </div>
@@ -282,7 +281,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* Search box & Reset demo button */}
+          {/* Search box */}
           <div className="flex items-center gap-2 w-full md:w-auto">
             <div className="relative flex-1 md:w-64">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -303,15 +302,7 @@ export default function HomePage() {
               )}
             </div>
 
-{isDemoMode() && (
-            <button
-              onClick={resetToInitial}
-              title="Reset data demo ke kondisi awal"
-              className="p-2 bg-white/90 dark:bg-white/[0.04] hover:bg-slate-100 dark:hover:bg-white/[0.08] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl border border-slate-200/90 dark:border-white/5 transition shrink-0 active:scale-95"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-            )}
+
           </div>
 
         </div>

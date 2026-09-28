@@ -3,33 +3,30 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuthStore, isDemoMode } from '@/store/useAuthStore';
-import { useLeaveStore } from '@/store/useLeaveStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
-import { UserRole } from '@/types/database';
+import type { UserRole } from '@/types/database';
 import { ThemeToggle } from './ThemeToggle';
 import { useHydrated } from '@/lib/useHydrated';
-import { canVerifyRequest, isSupervisor } from '@/lib/permissions';
-import {
-  GraduationCap,
-  LogOut,
-  ChevronDown,
-  Sparkles,
-  Check,
-  KeyRound,
-  X,
-} from 'lucide-react';
+import { navItemsFor } from '@/lib/nav';
+import { useNavBadges } from './useNavBadges';
+import { GraduationCap, LogOut, ChevronDown, KeyRound, X } from 'lucide-react';
+
+const ROLE_BADGE: Record<UserRole, string> = {
+  mahasiswa: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25',
+  sipen: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25',
+  km: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/25',
+};
 
 export const Navbar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, isReady, switchRole, logout, profiles, switchUser, usesPassword } = useAuthStore();
-  const { requests, courseSipen } = useLeaveStore();
+  const { user, klass, isAuthenticated, isReady, logout, usesPassword } = useAuthStore();
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const hydrated = useHydrated();
-  const demo = isDemoMode();
+  const badges = useNavBadges();
 
-  const pendingCount = requests.filter((r) => canVerifyRequest(user, r, courseSipen)).length;
+  if (pathname.startsWith('/dosen/')) return null; // portal dosen punya header sendiri
 
   const handleLogout = async () => {
     await logout();
@@ -37,107 +34,53 @@ export const Navbar: React.FC = () => {
     router.push('/login');
   };
 
-  const roleStyles: Record<UserRole, { badge: string; dot: string; label: string }> = {
-    mahasiswa: {
-      badge: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25',
-      dot: 'bg-blue-500',
-      label: 'Mahasiswa',
-    },
-    sipen: {
-      badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25',
-      dot: 'bg-emerald-500',
-      label: 'Sipen',
-    },
-    km: {
-      badge: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/25',
-      dot: 'bg-purple-500',
-      label: 'Ketua Kelas',
-    },
-  };
+  const items = navItemsFor(user);
 
   return (
     <header className="sticky top-0 z-40 px-3 sm:px-6 pt-3 sm:pt-4 pointer-events-none">
-      <div className="max-w-5xl mx-auto rounded-2xl liquid-glass px-3 sm:px-5 py-2.5 flex items-center justify-between pointer-events-auto transition-all duration-300">
-        
-        {/* Brand Mark (Both Desktop & Mobile) */}
+      <div className="max-w-6xl mx-auto rounded-2xl liquid-glass px-3 sm:px-5 py-2.5 flex items-center justify-between gap-3 pointer-events-auto transition-all duration-300">
         <Link href="/" className="flex items-center gap-2.5 group shrink-0">
           <div className="w-8 h-8 rounded-xl bg-blue-600/10 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 flex items-center justify-center group-hover:scale-105 transition-transform duration-200 shadow-inner">
             <GraduationCap className="w-4 h-4" />
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">
-              SIPPER-TI
-            </span>
-            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-semibold text-blue-700 dark:text-blue-300 bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 px-1.5 py-0.5 rounded-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
-              UMKT
+            <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">SIPPER-TI</span>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[9px] font-mono font-semibold text-blue-700 dark:text-blue-300 bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 px-1.5 py-0.5 rounded-md max-w-[140px] truncate">
+              <span className="w-1.5 h-1.5 shrink-0 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
+              {klass?.name ?? 'UMKT'}
             </span>
           </div>
         </Link>
 
-        {/* ========================================================================= */}
-        {/* DESKTOP EXCLUSIVE: Full App Bar Navigation Links (Hidden on Mobile)       */}
-        {/* ========================================================================= */}
-        {hydrated && isAuthenticated && user && (
-          <nav className="hidden md:flex items-center gap-1 bg-slate-100/80 dark:bg-white/[0.04] p-1 rounded-xl border border-slate-200/80 dark:border-white/5 text-xs">
-            <Link
-              href="/"
-              className={`px-3.5 py-1.5 rounded-lg font-medium transition-all ${
-                pathname === '/'
-                  ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Beranda
-            </Link>
-            <Link
-              href="/leave/new"
-              className={`px-3.5 py-1.5 rounded-lg font-medium transition-all ${
-                pathname === '/leave/new'
-                  ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Ajukan Izin
-            </Link>
-            {isSupervisor(user) && (
-              <Link
-                href="/approval"
-                className={`relative px-3.5 py-1.5 rounded-lg font-medium transition-all ${
-                  pathname === '/approval'
-                    ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                Approval
-                {pendingCount > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.2 text-[9px] font-mono font-bold bg-amber-500 text-slate-950 rounded-md">
-                    {pendingCount}
-                  </span>
-                )}
-              </Link>
-            )}
-            {isSupervisor(user) && (
-              <Link
-                href="/admin/tokens"
-                className={`px-3.5 py-1.5 rounded-lg font-medium transition-all ${
-                  pathname === '/admin/tokens'
-                    ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                Link Dosen
-              </Link>
-            )}
+        {/* DESKTOP: menu lengkap (mobile & tablet memakai bottom dock) */}
+        {hydrated && items.length > 0 && (
+          <nav className="hidden lg:flex items-center gap-0.5 bg-slate-100/80 dark:bg-white/[0.04] p-1 rounded-xl border border-slate-200/80 dark:border-white/5 text-xs">
+            {items.map((item) => {
+              const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+              const count = item.badge ? badges[item.badge] : 0;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap ${
+                    active
+                      ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {item.label}
+                  {count > 0 && (
+                    <span className="ml-1.5 px-1.5 text-[9px] font-mono font-bold bg-amber-500 text-slate-950 rounded-md">{count}</span>
+                  )}
+                </Link>
+              );
+            })}
           </nav>
         )}
 
-        {/* Right Section: Theme Toggle + User Popover */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Theme Switcher */}
           <ThemeToggle />
 
-          {/* User Account & Role Switcher */}
           {!hydrated || !isReady ? (
             <div className="w-20 h-8 rounded-xl bg-slate-200/50 dark:bg-white/5 animate-pulse" />
           ) : isAuthenticated && user ? (
@@ -154,95 +97,37 @@ export const Navbar: React.FC = () => {
                 <span className="text-xs font-semibold text-slate-900 dark:text-white hidden sm:block truncate max-w-[90px]">
                   {user.full_name.split(' ')[0]}
                 </span>
-                <span
-                  className={`text-[9px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded-md border ${roleStyles[user.role].badge}`}
-                >
-                  {user.role}
+                <span className={`text-[9px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded-md border ${ROLE_BADGE[user.role]}`}>
+                  {user.status === 'pending' ? 'pending' : user.role}
                 </span>
                 <ChevronDown className="w-3 h-3 text-slate-400 dark:text-slate-500" />
               </button>
 
-              {/* Account Dropdown Popover (Safe & Non-blocking) */}
               {isAccountOpen && (
                 <>
-                  <div
-                    className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40 backdrop-blur-[2px]"
-                    onClick={() => setIsAccountOpen(false)}
-                  />
-                  <div className="absolute right-0 top-11 mt-2 w-72 max-w-[calc(100vw-24px)] liquid-glass rounded-2xl shadow-2xl p-4 z-50 space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                  <div className="fixed inset-0 z-40" onClick={() => setIsAccountOpen(false)} />
+                  <div className="absolute right-0 top-11 mt-2 w-72 max-w-[calc(100vw-24px)] liquid-glass rounded-2xl shadow-2xl p-4 z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
                       <div>
                         <p className="text-xs font-bold text-slate-900 dark:text-white">{user.full_name}</p>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">NIM: {user.nim}</p>
+                        {klass && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Kelas: {klass.name}</p>}
+                        {user.is_admin && (
+                          <span className="inline-block mt-1 text-[9px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded-md border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
+                            Superadmin
+                          </span>
+                        )}
                       </div>
                       <button
                         onClick={() => setIsAccountOpen(false)}
                         className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-white transition"
+                        aria-label="Tutup menu akun"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
 
-                    {/* Role Switcher (mode demo saja) */}
-                    {demo && (
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                        <Sparkles className="w-3 h-3 text-amber-500 dark:text-amber-400" /> Beralih Peran:
-                      </span>
-                      <div className="grid grid-cols-3 gap-1.5 pt-0.5">
-                        {(['mahasiswa', 'sipen', 'km'] as UserRole[]).map((r) => (
-                          <button
-                            key={r}
-                            onClick={() => {
-                              switchRole(r);
-                              toast.info(`Peran aktif dialihkan ke: ${r.toUpperCase()}`);
-                              setIsAccountOpen(false);
-                            }}
-                            className={`py-1.5 px-1.5 rounded-lg text-[10px] font-mono font-semibold uppercase tracking-wider transition border text-center active:scale-95 ${
-                              user.role === r
-                                ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
-                                : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20'
-                            }`}
-                          >
-                            {r}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    )}
-
-                    {/* Demo Profile Switcher */}
-                    {demo && (
-                    <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
-                      <span className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
-                        Profil Demo Cepat:
-                      </span>
-                      <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
-                        {profiles.slice(0, 4).map((p) => (
-                          <button
-                            key={p.id}
-                            onClick={() => {
-                              switchUser(p.id);
-                              toast.success(`Beralih ke akun: ${p.full_name}`);
-                              setIsAccountOpen(false);
-                            }}
-                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition ${
-                              user.id === p.id
-                                ? 'bg-blue-600/10 dark:bg-blue-600/20 text-blue-700 dark:text-blue-300 font-medium border border-blue-500/30'
-                                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
-                            }`}
-                          >
-                            <span className="truncate">{p.full_name} ({p.role.toUpperCase()})</span>
-                            {user.id === p.id && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    )}
-
-                    {usesPassword ? (
+                    {usesPassword && (
                       <Link
                         href="/settings/password"
                         onClick={() => setIsAccountOpen(false)}
@@ -251,9 +136,8 @@ export const Navbar: React.FC = () => {
                         <KeyRound className="w-3.5 h-3.5" />
                         <span>Ganti Kata Sandi</span>
                       </Link>
-                    ) : null}
+                    )}
 
-                    {/* Logout */}
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
                       <button
                         onClick={() => {
@@ -278,9 +162,7 @@ export const Navbar: React.FC = () => {
               Masuk
             </Link>
           )}
-
         </div>
-
       </div>
     </header>
   );

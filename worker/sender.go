@@ -57,42 +57,52 @@ func (s *Sender) Tick(ctx context.Context) {
 		slog.Error("gagal menandai pesan kedaluwarsa", "err", err)
 	}
 
-	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT class_id FROM wa_messages
-		WHERE status = 'pending' AND send_after <= now()`)
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT m.class_id, k.reminder_dry_run FROM wa_messages m
+		JOIN classes k ON k.id = m.class_id WHERE m.status = 'pending' AND m.send_after <= now()`)
 	if err != nil {
 		slog.Error("gagal membaca antrean", "err", err)
 		return
 	}
-	var classes []string
+	type classQueue struct {
+		id     string
+		dryRun bool
+	}
+	var classes []classQueue
 	for rows.Next() {
-		var id string
-		if rows.Scan(&id) == nil {
-			classes = append(classes, id)
+		var q classQueue
+		if rows.Scan(&q.id, &q.dryRun) == nil {
+			classes = append(classes, q)
 		}
 	}
 	rows.Close()
 
-	for _, classID := range classes {
-		if time.Now().Before(s.nextSend[classID]) {
+	for _, q := range classes {
+		if time.Now().Before(s.nextSend[q.id]) {
 			continue
 		}
-		cli := s.sessions.Connected(classID)
-		if cli == nil {
+		cli := s.sessions.Connected(q.id)
+		if cli == nil && !q.dryRun {
 			continue // tunggu WhatsApp kelas terhubung
 		}
-		if s.sendOne(ctx, classID, cli) {
-			s.nextSend[classID] = time.Now().Add(time.Duration(5+rand.IntN(11)) * time.Second)
+		if s.sendOne(ctx, q.id, cli, q.dryRun) {
+			s.nextSend[q.id] = time.Now().Add(time.Duration(5+rand.IntN(11)) * time.Second)
 		}
 	}
 }
 
 // sendOne mengklaim satu pesan (FOR UPDATE SKIP LOCKED) lalu mengirimnya. true bila ada pesan.
-func (s *Sender) sendOne(ctx context.Context, classID string, cli *whatsmeow.Client) bool {
+// Pengingat hanya dikirim di dalam jam operasional kelas; tanpa klien WA (mode dry run)
+// hanya pengingat yang diproses. cli nil hanya terjadi saat dryRun.
+func (s *Sender) sendOne(ctx context.Context, classID string, cli *whatsmeow.Client, dryRun bool) bool {
 	var m queued
 	err := s.db.QueryRowContext(ctx, `UPDATE wa_messages SET status = 'sending', attempts = attempts + 1
-		WHERE id = (SELECT id FROM wa_messages WHERE class_id = $1 AND status = 'pending' AND send_after <= now()
-		            ORDER BY send_after, id FOR UPDATE SKIP LOCKED LIMIT 1)
-		RETURNING id, class_id, course_id, lecture_date, recipient, recipient_name, body, attempts`, classID).
+		WHERE id = (SELECT m.id FROM wa_messages m JOIN classes k ON k.id = m.class_id
+		            WHERE m.class_id = $1 AND m.status = 'pending' AND m.send_after <= now()
+		              AND (m.course_id IS NULL OR (now() AT TIME ZONE 'Asia/Makassar')::time
+		                   BETWEEN k.send_window_start AND k.send_window_end)
+		              AND ($2 OR m.course_id IS NOT NULL)
+		            ORDER BY m.send_after, m.id FOR UPDATE OF m SKIP LOCKED LIMIT 1)
+		RETURNING id, class_id, course_id, lecture_date, recipient, recipient_name, body, attempts`, classID, cli != nil).
 		Scan(&m.id, &m.classID, &m.courseID, &m.lectureDate, &m.recipient, &m.name, &m.body, &m.attempts)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false
@@ -107,6 +117,16 @@ func (s *Sender) sendOne(ctx context.Context, classID string, cli *whatsmeow.Cli
 			s.fail(ctx, m.id, err.Error(), true)
 			return true
 		}
+	}
+
+	// Mode uji: pengingat dirender & dicatat, tidak dikirim (pesan uji manual tetap dikirim)
+	if dryRun && m.courseID.Valid {
+		if _, err := s.db.ExecContext(ctx, `UPDATE wa_messages SET status = 'dry_run', sent_at = now(), last_error = NULL,
+			recipient = $2, recipient_name = $3, body = $4 WHERE id = $1`, m.id, m.recipient, m.name, m.body); err != nil {
+			slog.Error("gagal mencatat dry run", "id", m.id, "err", err)
+		}
+		slog.Info("dry run: pengingat tidak dikirim", "id", m.id, "class", classID)
+		return true
 	}
 
 	if err := sendWithPresence(ctx, cli, m.recipient.String, m.body.String); err != nil {

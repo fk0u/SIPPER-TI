@@ -21,8 +21,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Penjadwal: satu pernyataan atomik. last_reminded_on mencegah kirim ganda (juga saat
-// worker restart); hari libur tetap ditandai agar tidak dicoba lagi hari itu.
+// Penjadwal: satu pernyataan atomik, hanya di dalam jam operasional kelas (SiPenDosa).
+// last_reminded_on mencegah kirim ganda (juga saat worker restart); hari libur tetap
+// ditandai agar tidak dicoba lagi hari itu.
 const scheduleSQL = `
 WITH now_wita AS (
     SELECT (now() AT TIME ZONE 'Asia/Makassar')::date AS today,
@@ -35,6 +36,7 @@ WITH now_wita AS (
     CROSS JOIN now_wita n
     WHERE c.reminder_enabled
       AND c.reminder_time <= n.now_time
+      AND n.now_time BETWEEN k.send_window_start AND k.send_window_end
       AND (c.last_reminded_on IS NULL OR c.last_reminded_on < n.today)
       AND day_index(c.day_of_week) =
           extract(dow FROM CASE WHEN c.reminder_mode = 'H-1' THEN n.today + 1 ELSE n.today END)::int
@@ -94,6 +96,8 @@ func main() {
 	sessionTick := time.NewTicker(3 * time.Second)
 	sendTick := time.NewTicker(2 * time.Second)
 	scheduleTick := time.NewTicker(time.Minute)
+	groupTick := time.NewTicker(30 * time.Minute)
+	defer groupTick.Stop()
 	defer sessionTick.Stop()
 	defer sendTick.Stop()
 	defer scheduleTick.Stop()
@@ -124,6 +128,8 @@ func main() {
 			sender.Tick(ctx)
 		case <-scheduleTick.C:
 			schedule()
+		case <-groupTick.C:
+			sessions.SyncAllGroups(ctx)
 		}
 	}
 }

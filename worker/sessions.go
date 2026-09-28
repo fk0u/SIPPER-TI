@@ -180,6 +180,7 @@ func (s *Sessions) handleEvent(c *classClient, evt any) {
 		s.setState(c.classID, "state = 'connected', device_jid = $2, push_name = $3, qr_code = NULL, pair_code = NULL, last_error = NULL",
 			c.cli.Store.ID.String(), c.cli.Store.PushName)
 		slog.Info("WhatsApp terhubung", "class", c.classID, "jid", c.cli.Store.ID.String())
+		go s.syncGroups(context.Background(), c.classID, c.cli)
 	case *events.Disconnected:
 		s.setState(c.classID, "state = 'disconnected'")
 	case *events.LoggedOut:
@@ -232,5 +233,53 @@ func (s *Sessions) CloseAll() {
 	defer s.mu.Unlock()
 	for _, c := range s.clients {
 		c.cli.Disconnect()
+	}
+}
+
+// syncGroups menyimpan grup yang diikuti nomor kelas ke wa_groups (pemilih tujuan pengingat).
+func (s *Sessions) syncGroups(ctx context.Context, classID string, cli *whatsmeow.Client) {
+	groups, err := cli.GetJoinedGroups(ctx)
+	if err != nil {
+		slog.Warn("gagal mengambil grup WhatsApp", "class", classID, "err", err)
+		return
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, "DELETE FROM wa_groups WHERE class_id = $1", classID); err != nil {
+		return
+	}
+	for _, g := range groups {
+		if g == nil {
+			continue
+		}
+		name := g.GroupName.Name
+		if name == "" {
+			name = g.JID.User
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO wa_groups (class_id, jid, name, participants)
+			VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`, classID, g.JID.String(), name, len(g.Participants)); err != nil {
+			slog.Warn("gagal menyimpan grup", "class", classID, "err", err)
+			return
+		}
+	}
+	if err := tx.Commit(); err == nil {
+		slog.Info("grup WhatsApp disinkron", "class", classID, "jumlah", len(groups))
+	}
+}
+
+func (s *Sessions) SyncAllGroups(ctx context.Context) {
+	s.mu.Lock()
+	var list []*classClient
+	for _, c := range s.clients {
+		list = append(list, c)
+	}
+	s.mu.Unlock()
+	for _, c := range list {
+		if c.cli.IsConnected() && c.cli.IsLoggedIn() {
+			s.syncGroups(ctx, c.classID, c.cli)
+		}
 	}
 }

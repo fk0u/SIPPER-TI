@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Hourglass, LogOut, RefreshCw, School } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -14,14 +14,27 @@ export default function PendingPage() {
   const router = useRouter();
   const { user, klass, isReady, refresh, logout } = useAuthStore();
   const [classes, setClasses] = useState<OpenClass[]>([]);
+  const [classesError, setClassesError] = useState(false);
   const [choice, setChoice] = useState('');
   const [busy, setBusy] = useState(false);
 
   const isApplicant = Boolean(klass && klass.status === 'pending' && klass.created_by === user?.id);
 
+  const loadClasses = useCallback(
+    () =>
+      repo.listOpenClasses().then(
+        (list) => {
+          setClasses(list);
+          setClassesError(false);
+        },
+        () => setClassesError(true)
+      ),
+    []
+  );
+
   useEffect(() => {
-    if (!isApplicant) repo.listOpenClasses().then(setClasses).catch(() => setClasses([]));
-  }, [isApplicant]);
+    if (!isApplicant) loadClasses();
+  }, [isApplicant, loadClasses]);
 
   useEffect(() => {
     if (isReady && !user) router.replace('/login');
@@ -31,7 +44,7 @@ export default function PendingPage() {
 
   const checkStatus = async () => {
     setBusy(true);
-    await refresh();
+    await Promise.all([refresh(), isApplicant ? undefined : loadClasses()]);
     setBusy(false);
     if (useAuthStore.getState().user?.status === 'active') {
       toast.success('Akunmu sudah disetujui!');
@@ -93,13 +106,22 @@ export default function PendingPage() {
         </div>
       </Card>
 
+      {!isApplicant && classesError && (
+        <Card>
+          <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">
+            Daftar kelas gagal dimuat.{' '}
+            <button onClick={() => loadClasses()} className="underline font-semibold">Coba lagi</button>
+          </p>
+        </Card>
+      )}
+
       {!isApplicant && classes.length > 0 && (
         <Card className="space-y-3">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-900 dark:text-white">
             <School className="w-4 h-4 text-blue-500" /> {klass ? 'Salah pilih kelas?' : 'Pilih kelas'}
           </div>
-          <div>
-            <label className={labelCls}>Kelas tujuan</label>
+          <label className="block">
+            <span className={labelCls}>Kelas tujuan</span>
             <select className={inputCls} value={choice} onChange={(e) => setChoice(e.target.value)}>
               <option value="">— Pilih kelas —</option>
               {classes.filter((c) => c.id !== klass?.id).map((c) => (
@@ -108,7 +130,7 @@ export default function PendingPage() {
                 </option>
               ))}
             </select>
-          </div>
+          </label>
           <button onClick={changeClass} disabled={!choice || busy} className={`${btnGhost} w-full`}>
             Ajukan ke kelas ini
           </button>

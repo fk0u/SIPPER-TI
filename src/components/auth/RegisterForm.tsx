@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Eye, EyeOff, GraduationCap, Loader2, School, UserPlus, Users } from 'lucide-react';
@@ -33,6 +33,7 @@ export function RegisterForm() {
   const refresh = useAuthStore((s) => s.refresh);
 
   const [classes, setClasses] = useState<OpenClass[] | null>(null);
+  const [classesError, setClassesError] = useState(false);
   const [mode, setMode] = useState<Mode>('join');
   const [nim, setNim] = useState('');
   const [fullName, setFullName] = useState('');
@@ -42,17 +43,28 @@ export function RegisterForm() {
   const [classId, setClassId] = useState('');
   const [newClass, setNewClass] = useState({ name: '', program: 'Teknik Informatika', batch: '' });
   const [error, setError] = useState<string | null>(null);
+  const uid = useId();
   const [submitting, setSubmitting] = useState(false);
 
+  const loadClasses = useCallback(
+    () =>
+      repo.listOpenClasses().then(
+        (list) => {
+          setClasses(list);
+          setClassesError(false);
+          if (list.length === 0) setMode('new');
+        },
+        () => {
+          setClasses([]);
+          setClassesError(true); // gagal memuat ≠ belum ada kelas
+        }
+      ),
+    []
+  );
+
   useEffect(() => {
-    repo
-      .listOpenClasses()
-      .then((list) => {
-        setClasses(list);
-        if (list.length === 0) setMode('new');
-      })
-      .catch(() => setClasses([]));
-  }, []);
+    loadClasses();
+  }, [loadClasses]);
 
   const validate = (): string | null => {
     if (!/^[0-9]{8,20}$/.test(nim.trim())) return 'NIM harus berupa 8–20 digit angka.';
@@ -79,7 +91,13 @@ export function RegisterForm() {
         password,
         choice: mode === 'join' ? { kind: 'join', classId } : { kind: 'new', ...newClass },
       });
-      await refresh();
+      const loaded = await refresh();
+      if (!loaded || !useAuthStore.getState().user) {
+        // Akun sudah dibuat; hanya sesi yang gagal dimuat → arahkan masuk manual
+        toast.info('Akun dibuat. Silakan masuk dengan NIM & kata sandimu.');
+        router.replace('/login');
+        return;
+      }
       toast.success('Akun dibuat! Tunggu persetujuan untuk mulai memakai SIPPER-TI.');
       router.replace('/menunggu');
     } catch (err) {
@@ -92,6 +110,7 @@ export function RegisterForm() {
   const tab = (value: Mode, label: string, Icon: typeof Users) => (
     <button
       type="button"
+      aria-pressed={mode === value}
       onClick={() => setMode(value)}
       className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition ${
         mode === value
@@ -122,7 +141,7 @@ export function RegisterForm() {
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-start gap-3 text-rose-800 dark:text-rose-300 text-xs">
+        <div role="alert" className="p-4 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-start gap-3 text-rose-800 dark:text-rose-300 text-xs">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
           <span>{error}</span>
         </div>
@@ -130,21 +149,21 @@ export function RegisterForm() {
 
       <div className="doppelrand-shell">
         <form onSubmit={handleSubmit} className="doppelrand-core p-6 sm:p-7 space-y-4">
-          <div>
-            <label className={labelCls}>Nomor Induk Mahasiswa (NIM)</label>
+          <label className="block">
+            <span className={labelCls}>Nomor Induk Mahasiswa (NIM)</span>
             <input className={`${inputCls} font-mono`} inputMode="numeric" autoComplete="username"
               value={nim} onChange={(e) => setNim(e.target.value)} placeholder="Contoh: 2611102441026" />
-          </div>
-          <div>
-            <label className={labelCls}>Nama Lengkap</label>
+          </label>
+          <label className="block">
+            <span className={labelCls}>Nama Lengkap</span>
             <input className={inputCls} autoComplete="name" value={fullName}
               onChange={(e) => setFullName(e.target.value)} placeholder="Sesuai data kampus" />
-          </div>
+          </label>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Kata Sandi</label>
+              <label htmlFor={`${uid}-pw`} className={labelCls}>Kata Sandi</label>
               <div className="relative">
-                <input className={`${inputCls} pr-9`} type={showPassword ? 'text' : 'password'} autoComplete="new-password"
+                <input id={`${uid}-pw`} className={`${inputCls} pr-9`} type={showPassword ? 'text' : 'password'} autoComplete="new-password"
                   value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 8 karakter" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-white"
@@ -153,11 +172,11 @@ export function RegisterForm() {
                 </button>
               </div>
             </div>
-            <div>
-              <label className={labelCls}>Ulangi Sandi</label>
+            <label className="block">
+              <span className={labelCls}>Ulangi Sandi</span>
               <input className={inputCls} type={showPassword ? 'text' : 'password'} autoComplete="new-password"
                 value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-            </div>
+            </label>
           </div>
 
           <div className="pt-1 space-y-3">
@@ -169,12 +188,17 @@ export function RegisterForm() {
             {mode === 'join' ? (
               classes === null ? (
                 <div className="flex items-center gap-2 text-xs text-slate-500"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Memuat daftar kelas...</div>
+              ) : classesError ? (
+                <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">
+                  Daftar kelas gagal dimuat.{' '}
+                  <button type="button" onClick={() => { setClasses(null); loadClasses(); }} className="underline font-semibold">Coba lagi</button>
+                </p>
               ) : classes.length === 0 ? (
                 <p className="text-xs text-slate-500 dark:text-slate-400">Belum ada kelas aktif. Ajukan kelas baru.</p>
               ) : (
                 <div>
-                  <label className={labelCls}>Kelas</label>
-                  <select className={inputCls} value={classId} onChange={(e) => setClassId(e.target.value)}>
+                  <label htmlFor={`${uid}-kelas`} className={labelCls}>Kelas</label>
+                  <select id={`${uid}-kelas`} className={inputCls} value={classId} onChange={(e) => setClassId(e.target.value)}>
                     <option value="">— Pilih kelas —</option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -190,21 +214,21 @@ export function RegisterForm() {
             ) : (
               <div className="space-y-3">
                 <div>
-                  <label className={labelCls}>Nama Kelas</label>
-                  <input className={inputCls} value={newClass.name} maxLength={80}
+                  <label htmlFor={`${uid}-nkelas`} className={labelCls}>Nama Kelas</label>
+                  <input id={`${uid}-nkelas`} className={inputCls} value={newClass.name} maxLength={80}
                     onChange={(e) => setNewClass({ ...newClass, name: e.target.value })} placeholder="Contoh: TI Internasional 2026" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <label className={labelCls}>Program Studi</label>
+                  <label className="col-span-2 block">
+                    <span className={labelCls}>Program Studi</span>
                     <input className={inputCls} value={newClass.program} maxLength={80}
                       onChange={(e) => setNewClass({ ...newClass, program: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Angkatan</label>
+                  </label>
+                  <label className="block">
+                    <span className={labelCls}>Angkatan</span>
                     <input className={inputCls} value={newClass.batch} maxLength={20} inputMode="numeric"
                       onChange={(e) => setNewClass({ ...newClass, batch: e.target.value })} placeholder="2026" />
-                  </div>
+                  </label>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Kamu menjadi <strong>Ketua Kelas (KM)</strong> setelah pengajuan di-ACC admin platform.

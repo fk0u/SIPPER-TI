@@ -16,11 +16,17 @@ const course = (over: Partial<PortalCourse> = {}): PortalCourse => ({
   ...over,
 });
 
-describe('firstOccurrence', () => {
+const wita = (iso: string) => new Date(`${iso}+08:00`);
+
+describe('firstOccurrence (WITA, tidak bergantung zona waktu server)', () => {
   it('hari ini bila harinya sama, selain itu hari berikutnya', () => {
-    expect(firstOccurrence(1, '2026-09-28')).toBe('2026-09-28'); // Senin
-    expect(firstOccurrence(3, '2026-09-28')).toBe('2026-09-30'); // Rabu
-    expect(firstOccurrence(0, '2026-09-28')).toBe('2026-10-04'); // Minggu
+    const senin = wita('2026-09-28T10:00:00');
+    expect(firstOccurrence(1, senin)).toBe('2026-09-28'); // Senin
+    expect(firstOccurrence(3, senin)).toBe('2026-09-30'); // Rabu
+    expect(firstOccurrence(0, senin)).toBe('2026-10-04'); // Minggu
+  });
+  it('Senin 01:00 WITA masih Senin walau di UTC masih Minggu', () => {
+    expect(firstOccurrence(1, wita('2026-09-28T01:00:00'))).toBe('2026-09-28');
   });
 });
 
@@ -28,7 +34,7 @@ describe('buildScheduleIcs', () => {
   it('nama kalender', () => {
     expect(buildScheduleIcs('Jadwal Kelas A', [], [])).toContain('X-WR-CALNAME:Jadwal Kelas A');
   });
-  const now = new Date(2026, 8, 28, 10, 0); // Senin 28 Sep 2026
+  const now = wita('2026-09-28T10:00:00'); // Senin 28 Sep 2026
   const ics = buildScheduleIcs('Jadwal Mengajar Dr. Hendra', [course(), course({ id: 'c2', day_of_week: null })], [
     { date: '2026-10-05', description: 'Libur' }, // Senin → dikecualikan
     { date: '2026-10-06', description: 'Libur Selasa' }, // bukan hari kuliah
@@ -38,7 +44,7 @@ describe('buildScheduleIcs', () => {
     expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(1);
     expect(ics).toContain('DTSTART;TZID=Asia/Makassar:20260928T080000');
     expect(ics).toContain('DTEND;TZID=Asia/Makassar:20260928T094000');
-    expect(ics).toContain('RRULE:FREQ=WEEKLY');
+    expect(ics).toContain('RRULE:FREQ=WEEKLY;UNTIL=20270928T235959Z');
     expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
   });
   it('hari libur di hari kuliah menjadi EXDATE', () => {
@@ -47,5 +53,10 @@ describe('buildScheduleIcs', () => {
   });
   it('teks di-escape', () => {
     expect(ics).toContain('SUMMARY:TI-401 Cloud\\; Computing · TI Internasional 2026');
+  });
+  it('baris dilipat per 75 oktet UTF-8 & CR di-escape', () => {
+    const long = buildScheduleIcs('Kalender', [course({ name: 'Ééééé '.repeat(30), room: 'Lab\r\n3' })], [], now);
+    for (const line of long.split('\r\n')) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
+    expect(long).toContain('LOCATION:Lab\\n3');
   });
 });

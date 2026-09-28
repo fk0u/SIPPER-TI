@@ -55,7 +55,7 @@ export const useAuthStore = create<AuthState>()((set, get) => {
       const [klass, profiles] = profile && !mfaPending
         ? await Promise.all([
             profile.class_id ? repo.fetchClass(profile.class_id) : Promise.resolve(null),
-            repo.fetchProfiles(),
+            profile.class_id && profile.status === 'active' ? repo.fetchProfiles(profile.class_id) : Promise.resolve([]),
           ])
         : [null, []];
       if (generation !== sessionGeneration) return true; // sudah ada pemuatan yang lebih baru

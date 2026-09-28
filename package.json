@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:rls": "bash scripts/test-rls.sh",
-    "test:worker": "cd worker && go vet ./... && go test ./...",
+    "test:worker": "cd worker && go vet ./... && go test -race ./...",
     "test:e2e-api": "python3 scripts/e2e-api.py"
   },
   "dependencies": {

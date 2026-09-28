@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import * as repo from '@/lib/data/supabaseRepository';
-import { TEMPLATE_VARIABLES, renderTemplate } from '@/lib/reminderTemplate';
+import { TEMPLATE_VARIABLES, renderTemplate, validateTemplate } from '@/lib/reminderTemplate';
 import { formatCountdown, nextReminder } from '@/lib/nextReminder';
 import { Badge, Card, Empty, PageHeader, btnDanger, btnGhost, btnPrimary, errorText, inputCls, labelCls } from '@/components/ui/kit';
 import type { Holiday, TemplateVersion, WaGroup, WaMessage, WaMessageStatus, WaSession, WaState, WaStats } from '@/types/database';
@@ -118,6 +118,7 @@ function WhatsAppCenter() {
 
   const state: WaState = session?.state ?? 'disconnected';
   const templateDirty = template !== klass.reminder_template;
+  const templateError = validateTemplate(template);
   const settingsDirty =
     settings.start !== hhmm(klass.send_window_start) || settings.end !== hhmm(klass.send_window_end) || settings.dryRun !== klass.reminder_dry_run;
   const upcoming = nextReminder(courses, holidays, { start: klass.send_window_start, end: klass.send_window_end }, new Date(now));
@@ -189,7 +190,7 @@ function WhatsAppCenter() {
                 <Power className="w-3.5 h-3.5" /> Sambungkan (scan QR)
               </button>
               <div className="flex gap-2">
-                <input className={`${inputCls} font-mono`} inputMode="tel" placeholder="atau kode via nomor: 08..." value={pairPhone} onChange={(e) => setPairPhone(e.target.value)} />
+                <input aria-label="Nomor WhatsApp untuk kode pairing" className={`${inputCls} font-mono`} inputMode="tel" placeholder="atau kode via nomor: 08..." value={pairPhone} onChange={(e) => setPairPhone(e.target.value)} />
                 <button disabled={busy || pairPhone.trim().length < 9} onClick={() => act(() => repo.waRequest('on', pairPhone), 'Meminta kode pairing...')} className={btnGhost}>
                   <Link2 className="w-3.5 h-3.5" /> Kode
                 </button>
@@ -215,11 +216,11 @@ function WhatsAppCenter() {
             }}
           >
             <p className="text-xs font-semibold text-slate-900 dark:text-white">Kirim pesan uji</p>
-            <input className={`${inputCls} font-mono`} list="wa-groups-test" placeholder="Nomor 08... atau pilih grup" value={test.to} onChange={(e) => setTest({ ...test, to: e.target.value })} required />
+            <input aria-label="Nomor atau grup tujuan pesan uji" className={`${inputCls} font-mono`} list="wa-groups-test" placeholder="Nomor 08... atau pilih grup" value={test.to} onChange={(e) => setTest({ ...test, to: e.target.value })} required />
             <datalist id="wa-groups-test">
               {groups.map((g) => <option key={g.jid} value={g.jid} label={`👥 ${g.name}`} />)}
             </datalist>
-            <textarea className={inputCls} rows={2} value={test.body} onChange={(e) => setTest({ ...test, body: e.target.value })} required />
+            <textarea aria-label="Isi pesan uji" className={inputCls} rows={2} value={test.body} onChange={(e) => setTest({ ...test, body: e.target.value })} required />
             <button disabled={busy} className={`${btnGhost} w-full`}><Send className="w-3.5 h-3.5" /> Kirim uji</button>
           </form>
         </Card>
@@ -245,14 +246,14 @@ function WhatsAppCenter() {
           <Card className="space-y-3">
             <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"><Settings2 className="w-4 h-4" /> Pengaturan Pengiriman</h2>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelCls}>Jam operasional mulai</label>
+              <label className="block">
+                <span className={labelCls}>Jam operasional mulai</span>
                 <input type="time" className={inputCls} value={settings.start} onChange={(e) => setSettings({ ...settings, start: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelCls}>Sampai</label>
+              </label>
+              <label className="block">
+                <span className={labelCls}>Sampai</span>
                 <input type="time" className={inputCls} value={settings.end} onChange={(e) => setSettings({ ...settings, end: e.target.value })} />
-              </div>
+              </label>
             </div>
             <label className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
               <input type="checkbox" className="accent-purple-600 mt-0.5" checked={settings.dryRun} onChange={(e) => setSettings({ ...settings, dryRun: e.target.checked })} />
@@ -268,19 +269,25 @@ function WhatsAppCenter() {
       <Card className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white">Template Pengingat</h2>
-          <button disabled={busy || !templateDirty} onClick={() => act(async () => { await repo.setReminderTemplate(template); await refresh(); }, 'Template disimpan (versi lama masuk riwayat).')} className={btnPrimary}>
+          <button disabled={busy || !templateDirty || Boolean(templateError)} onClick={() => act(async () => { await repo.setReminderTemplate(template); await refresh(); }, 'Template disimpan (versi lama masuk riwayat).')} className={btnPrimary}>
             <Save className="w-3.5 h-3.5" /> Simpan
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className={labelCls}>Isi template</label>
+          <label className="block">
+            <span className={labelCls}>Isi template</span>
             <textarea className={`${inputCls} font-mono leading-relaxed`} rows={16} value={template} onChange={(e) => setTemplate(e.target.value)} />
-          </div>
+          </label>
           <div>
-            <label className={labelCls}>Pratinjau (data contoh)</label>
+            <span className={labelCls}>Pratinjau (data contoh)</span>
             <div className="whitespace-pre-wrap text-xs leading-relaxed rounded-xl p-3 bg-emerald-500/[0.07] border border-emerald-500/20 text-slate-800 dark:text-slate-200 min-h-[16rem]">
-              {renderTemplate(template)}
+              {templateError ? (
+                <span role="alert" className="text-rose-600 dark:text-rose-400">
+                  Template tidak valid: {templateError} Worker tidak akan bisa mengirim pengingat dengan template ini.
+                </span>
+              ) : (
+                renderTemplate(template)
+              )}
             </div>
           </div>
         </div>

@@ -45,3 +45,21 @@ export function dayIndexID(name: string | null | undefined): number {
 export function dayNameID(now: Date = new Date()): string {
   return DAY_NAMES_ID[now.getDay()];
 }
+
+/** Nama hari menurut WITA (kampus), tidak bergantung zona waktu server/perangkat. */
+export function dayNameWITA(now: Date = new Date()): string {
+  return DAY_NAMES_ID[new Date(now.getTime() + 8 * 3600_000).getUTCDay()];
+}
+
+/** Tanggal hari ini menurut WITA, YYYY-MM-DD. */
+export function todayWITA(now: Date = new Date()): string {
+  return new Date(now.getTime() + 8 * 3600_000).toISOString().slice(0, 10);
+}
+
+/** Semester berjalan, mis. "2026/2027-1" (Agustus–Januari = ganjil, Februari–Juli = genap). */
+export function currentSemester(now: Date = new Date()): string {
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const start = m >= 8 ? y : y - 1;
+  return `${start}/${start + 1}-${m >= 8 || m === 1 ? 1 : 2}`;
+}

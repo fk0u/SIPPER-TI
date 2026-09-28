@@ -271,7 +271,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ nextPath = '/', initialErr
       <div className="liquid-glass rounded-2xl p-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold text-slate-900 dark:text-white">Belum punya akun?</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Daftar dengan NIM, pilih kelas, lalu tunggu ACC Sipen / KM.</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Daftar dengan NIM lalu pilih kelas (ACC Sipen / KM), atau ajukan kelas baru (ACC admin platform).</p>
         </div>
         <Link
           href="/register"

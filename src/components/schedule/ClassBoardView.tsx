@@ -4,7 +4,7 @@ import React from 'react';
 import { AlertTriangle, CalendarDays, CalendarOff, CalendarPlus, Clock, MapPin, Printer, User } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Badge, Card } from '@/components/ui/kit';
-import { DAY_NAMES_MON_FIRST, dayNameID } from '@/lib/date';
+import { DAY_NAMES_MON_FIRST, dayNameWITA, todayWITA } from '@/lib/date';
 import type { ClassBoardResult } from '@/types/database';
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : '--:--');
@@ -34,7 +34,10 @@ export function ClassBoardView({ board, token }: { board: ClassBoardResult; toke
   }
 
   const { class: klass, courses, holidays } = board;
-  const today = dayNameID();
+  const today = dayNameWITA();
+  // Portal menerima libur 365 hari (untuk EXDATE kalender); tampilkan 4 bulan ke depan
+  const soon = new Date(Date.parse(`${todayWITA()}T00:00:00Z`) + 120 * 86_400_000).toISOString().slice(0, 10);
+  const holidaysSoon = holidays.filter((h) => h.date < soon);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
@@ -89,11 +92,11 @@ export function ClassBoardView({ board, token }: { board: ClassBoardResult; toke
         </div>
       )}
 
-      {holidays.length > 0 && (
+      {holidaysSoon.length > 0 && (
         <Card className="space-y-2">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"><CalendarOff className="w-4 h-4" /> Libur Mendatang</h2>
           <ul className="grid sm:grid-cols-2 gap-2">
-            {holidays.map((h) => (
+            {holidaysSoon.map((h) => (
               <li key={h.date} className="text-xs"><span className="font-mono text-slate-500 mr-2">{fmtDate(h.date)}</span>{h.description}</li>
             ))}
           </ul>

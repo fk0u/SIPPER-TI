@@ -70,10 +70,11 @@ export async function fetchOwnProfile(): Promise<Profile | null> {
   return (data as Profile | null) ?? null;
 }
 
-/** Anggota sekelas (termasuk pendaftar pending): hanya kolom publik. */
-export async function fetchProfiles(): Promise<ProfileSummary[]> {
+/** Anggota sekelas (termasuk pendaftar pending): hanya kolom publik. Difilter per kelas karena
+ *  superadmin dapat membaca profil semua kelas. */
+export async function fetchProfiles(classId: string): Promise<ProfileSummary[]> {
   return unwrap(
-    await createClient().from('profiles').select(PROFILE_DIRECTORY_COLUMNS).order('full_name')
+    await createClient().from('profiles').select(PROFILE_DIRECTORY_COLUMNS).eq('class_id', classId).order('full_name')
   ) as unknown as ProfileSummary[];
 }
 
@@ -216,18 +217,9 @@ export async function deleteCourse(id: string): Promise<void> {
   unwrap(await createClient().from('courses').delete().eq('id', id));
 }
 
-/** Samakan penugasan Sipen pada satu mata kuliah (khusus KM). */
-export async function setCourseSipen(courseId: string, userIds: string[], current: string[]): Promise<void> {
-  const supabase = createClient();
-  const toRemove = current.filter((u) => !userIds.includes(u));
-  const toAdd = userIds.filter((u) => !current.includes(u));
-  if (toRemove.length) {
-    unwrap(await supabase.from('course_sipen').delete().eq('course_id', courseId).in('user_id', toRemove));
-  }
-  if (toAdd.length) {
-    unwrap(await supabase.from('course_sipen').insert(toAdd.map((user_id) => ({ user_id, course_id: courseId }))));
-  }
-}
+/** Samakan penugasan Sipen pada satu mata kuliah dalam satu transaksi (khusus KM). */
+export const setCourseSipen = (courseId: string, userIds: string[]) =>
+  rpc('set_course_sipen', { p_course: courseId, p_users: userIds });
 
 export const getClassLecturers = () => rpc<Lecturer[]>('get_class_lecturers');
 export const saveLecturer = (id: string | null, name: string, phone: string, email: string) =>

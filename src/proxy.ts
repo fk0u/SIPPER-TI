@@ -71,7 +71,7 @@ export async function proxy(request: NextRequest) {
   // Akun NIM dengan password default wajib menggantinya sebelum mengakses halaman lain.
   const usesPassword = user.app_metadata?.provider === 'email';
   if (usesPassword && !profile.is_password_changed) {
-    return pathname === PASSWORD_PAGE ? response : redirectTo(PASSWORD_PAGE);
+    return pathname === PASSWORD_PAGE ? response : redirectTo(PASSWORD_PAGE, pathname === '/' ? undefined : { next: pathname });
   }
 
   // Akun yang belum di-ACC hanya boleh ke halaman tunggu (& ganti password)

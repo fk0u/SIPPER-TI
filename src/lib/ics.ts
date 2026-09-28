@@ -1,31 +1,52 @@
 // Kalender iCalendar (RFC 5545) jadwal kuliah (portal dosen & papan jadwal kelas): satu event
 // berulang mingguan per mata kuliah, hari libur dikecualikan (EXDATE). Zona waktu: WITA (UTC+8, tanpa DST).
 import type { Holiday, PortalCourse } from '@/types/database';
-import { dayIndexID, parseISODate, toLocalISODate } from './date';
+import { dayIndexID } from './date';
 
 const TZID = 'Asia/Makassar';
+const WITA_OFFSET_MS = 8 * 3600_000;
+const DAY_MS = 86_400_000;
+/** Sama dengan cakupan hari libur yang dikirim RPC portal (365 hari): di luar itu EXDATE tidak diketahui. */
+export const ICS_HORIZON_DAYS = 365;
 
-const escapeText = (s: string) => s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1');
+const escapeText = (s: string) =>
+  s.replace(/\\/g, '\\\\').replace(/\r\n|\r|\n/g, '\\n').replace(/([,;])/g, '\\$1');
 const compactDate = (iso: string) => iso.replace(/-/g, '');
 const compactTime = (t: string) => `${t.slice(0, 2)}${t.slice(3, 5)}00`;
 
-/** Lipat baris > 75 oktet sesuai RFC 5545 (cukup per karakter untuk teks kita). */
+const utf8 = new TextEncoder();
+/** Lipat baris > 75 oktet UTF-8 (RFC 5545) tanpa memotong di tengah karakter. */
 function fold(line: string): string {
   const out: string[] = [];
-  let rest = line;
-  while (rest.length > 74) {
-    out.push(rest.slice(0, 74));
-    rest = ' ' + rest.slice(74);
+  let current = '';
+  let bytes = 0;
+  for (const ch of line) {
+    const size = utf8.encode(ch).length;
+    const limit = out.length === 0 ? 75 : 74; // baris lanjutan diawali satu spasi
+    if (bytes + size > limit) {
+      out.push(current);
+      current = '';
+      bytes = 0;
+    }
+    current += ch;
+    bytes += size;
   }
-  out.push(rest);
-  return out.join('\r\n');
+  out.push(current);
+  return out.join('\r\n ');
 }
 
-/** Tanggal pertemuan pertama (hari ini termasuk) untuk indeks hari `dow`. */
-export function firstOccurrence(dow: number, today: string): string {
-  const d = parseISODate(today);
-  d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7));
-  return toLocalISODate(d);
+/** Tengah malam hari ini menurut WITA, sebagai milidetik "jam dinding WITA" (dibaca dengan getUTC*). */
+const witaMidnight = (now: Date) => {
+  const t = now.getTime() + WITA_OFFSET_MS;
+  return t - (t % DAY_MS);
+};
+const isoOf = (witaMs: number) => new Date(witaMs).toISOString().slice(0, 10);
+
+/** Tanggal pertemuan pertama (hari ini termasuk, WITA) untuk indeks hari `dow`. */
+export function firstOccurrence(dow: number, now: Date = new Date()): string {
+  const today = witaMidnight(now);
+  const todayDow = new Date(today).getUTCDay();
+  return isoOf(today + ((dow - todayDow + 7) % 7) * DAY_MS);
 }
 
 export function buildScheduleIcs(
@@ -34,8 +55,9 @@ export function buildScheduleIcs(
   holidays: Holiday[],
   now: Date = new Date()
 ): string {
-  const today = toLocalISODate(now);
   const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  // Pengulangan dibatasi sampai batas data hari libur agar tidak ada pertemuan di hari libur yang tak tercatat
+  const until = compactDate(isoOf(witaMidnight(now) + ICS_HORIZON_DAYS * DAY_MS));
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -58,10 +80,10 @@ export function buildScheduleIcs(
   for (const c of courses) {
     const dow = dayIndexID(c.day_of_week);
     if (dow < 0 || !c.start_time || !c.end_time) continue;
-    const first = firstOccurrence(dow, today);
+    const first = firstOccurrence(dow, now);
     const start = compactTime(c.start_time);
     const exdates = holidays
-      .filter((h) => h.date >= first && parseISODate(h.date).getDay() === dow)
+      .filter((h) => h.date >= first && new Date(`${h.date}T00:00:00Z`).getUTCDay() === dow)
       .map((h) => `${compactDate(h.date)}T${start}`);
 
     lines.push(
@@ -70,7 +92,7 @@ export function buildScheduleIcs(
       `DTSTAMP:${stamp}`,
       `DTSTART;TZID=${TZID}:${compactDate(first)}T${start}`,
       `DTEND;TZID=${TZID}:${compactDate(first)}T${compactTime(c.end_time)}`,
-      'RRULE:FREQ=WEEKLY',
+      `RRULE:FREQ=WEEKLY;UNTIL=${until}T235959Z`,
       ...(exdates.length ? [`EXDATE;TZID=${TZID}:${exdates.join(',')}`] : []),
       `SUMMARY:${escapeText(`${c.code} ${c.name} · ${c.class_name}`)}`,
       ...(c.room ? [`LOCATION:${escapeText(c.room)}`] : []),

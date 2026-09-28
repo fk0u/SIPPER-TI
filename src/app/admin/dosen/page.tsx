@@ -97,18 +97,18 @@ function LecturerManager() {
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">{form.id ? 'Ubah Dosen' : 'Tambah Dosen'}</h2>
               <button type="button" onClick={() => setForm(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400" aria-label="Tutup"><X className="w-4 h-4" /></button>
             </div>
-            <div className="sm:col-span-3">
-              <label className={labelCls}>Nama & gelar</label>
+            <label className="sm:col-span-3 block">
+              <span className={labelCls}>Nama & gelar</span>
               <input className={inputCls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required minLength={3} />
-            </div>
-            <div className="sm:col-span-3">
-              <label className={labelCls}>No. WhatsApp</label>
+            </label>
+            <label className="sm:col-span-3 block">
+              <span className={labelCls}>No. WhatsApp</span>
               <input className={`${inputCls} font-mono`} inputMode="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required placeholder="0812..." />
-            </div>
-            <div className="sm:col-span-4">
-              <label className={labelCls}>Email (opsional)</label>
+            </label>
+            <label className="sm:col-span-4 block">
+              <span className={labelCls}>Email (opsional)</span>
               <input type="email" className={inputCls} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
+            </label>
             <div className="sm:col-span-2 flex items-end">
               <button type="submit" disabled={busy} className={`${btnPrimary} w-full`}><Save className="w-3.5 h-3.5" /> Simpan</button>
             </div>

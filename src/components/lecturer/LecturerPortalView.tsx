@@ -5,11 +5,12 @@ import { AlertTriangle, CalendarPlus, CalendarOff, Clock, GraduationCap, MapPin,
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { CountUp } from '@/components/reactbits/CountUp';
 import { Badge, Card } from '@/components/ui/kit';
-import { DAY_NAMES_MON_FIRST, dayNameID, diffDaysInclusive, isDateInRange } from '@/lib/date';
+import { DAY_NAMES_MON_FIRST, dayNameWITA, diffDaysInclusive, isDateInRange, todayWITA } from '@/lib/date';
 import { LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import type { LecturerPortalResult } from '@/types/database';
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : '--:--');
+const addDays = (iso: string, days: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 const fmtDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -42,7 +43,9 @@ export function LecturerPortalView({ portal, token }: { portal: LecturerPortalRe
   const { lecturer, courses, leaves, holidays } = portal;
   const courseById = new Map(courses.map((c) => [c.id, c]));
   const classCount = new Set(courses.map((c) => c.class_name)).size;
-  const today = dayNameID();
+  const today = dayNameWITA();
+  // Portal menerima libur 365 hari (untuk EXDATE kalender); tampilkan 4 bulan ke depan
+  const holidaysSoon = holidays.filter((h) => h.date < addDays(todayWITA(), 120));
 
   const shown = leaves.filter((l) => {
     if (courseId && l.course_id !== courseId) return false;
@@ -128,11 +131,11 @@ export function LecturerPortalView({ portal, token }: { portal: LecturerPortalRe
 
         <Card className="space-y-3">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"><CalendarOff className="w-4 h-4" /> Libur Mendatang</h2>
-          {holidays.length === 0 ? (
+          {holidaysSoon.length === 0 ? (
             <p className="text-xs text-slate-500">Tidak ada hari libur dalam 4 bulan ke depan.</p>
           ) : (
             <ul className="space-y-2">
-              {holidays.map((h) => (
+              {holidaysSoon.map((h) => (
                 <li key={h.date} className="text-xs">
                   <span className="font-mono text-slate-500 block">{fmtDate(h.date)}</span>
                   <span className="text-slate-900 dark:text-white">{h.description}</span>
@@ -152,7 +155,7 @@ export function LecturerPortalView({ portal, token }: { portal: LecturerPortalRe
               <option value="">Semua mata kuliah</option>
               {courses.map((c) => <option key={c.id} value={c.id}>{c.code} · {c.class_name}</option>)}
             </select>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            <input type="date" aria-label="Filter tanggal izin" value={date} onChange={(e) => setDate(e.target.value)}
               className="bg-white/90 dark:bg-white/[0.04] border border-slate-200/90 dark:border-white/5 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-white" />
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />

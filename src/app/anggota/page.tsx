@@ -6,7 +6,7 @@ import { RequireRole } from '@/components/auth/RequireRole';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
 import * as repo from '@/lib/data/supabaseRepository';
-import { isKM } from '@/lib/permissions';
+import { isKM, isSupervisor } from '@/lib/permissions';
 import { Badge, Card, Empty, PageHeader, btnDanger, btnGhost, btnPrimary, errorText, inputCls } from '@/components/ui/kit';
 import type { ProfileSummary, UserRole } from '@/types/database';
 
@@ -21,6 +21,7 @@ function MembersManager() {
   // Superadmin tetap bisa mengatur peran walau sudah menyerahkan jabatan KM
   const canManageRoles = km || Boolean(user?.is_admin);
 
+  const staff = isSupervisor(user);
   const pending = profiles.filter((p) => p.status === 'pending');
   const q = query.trim().toLowerCase();
   const active = profiles
@@ -69,6 +70,7 @@ function MembersManager() {
         description="Setujui pendaftar baru dari kelasmu. KM dapat menunjuk Sipen, menyerahkan jabatan KM (migrasi KM), dan mengeluarkan anggota."
       />
 
+      {staff && (
       <Card className="space-y-3">
         <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
           Menunggu Persetujuan <Badge tone="amber">{pending.length}</Badge>
@@ -98,6 +100,7 @@ function MembersManager() {
           </ul>
         )}
       </Card>
+      )}
 
       <Card className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -163,7 +166,7 @@ function MembersManager() {
 export default function MembersPage() {
   return (
     <div className="py-4 sm:py-6">
-      <RequireRole roles={['km', 'sipen']}>
+      <RequireRole roles={['km', 'sipen', 'admin']}>
         <MembersManager />
       </RequireRole>
     </div>

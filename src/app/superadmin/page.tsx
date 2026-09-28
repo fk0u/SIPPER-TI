@@ -55,7 +55,7 @@ function ClassLeaderRow({ klass, leader, onChanged }: { klass: ClassInfo; leader
       </div>
       {members && (
         <div className="flex flex-wrap gap-2">
-          <select className={`${inputCls} flex-1 min-w-[12rem]`} value={choice} onChange={(e) => setChoice(e.target.value)}>
+          <select aria-label={`KM baru ${klass.name}`} className={`${inputCls} flex-1 min-w-[12rem]`} value={choice} onChange={(e) => setChoice(e.target.value)}>
             <option value="">— Pilih KM baru —</option>
             {members.filter((m) => m.id !== leader?.id).map((m) => (
               <option key={m.id} value={m.id}>{m.full_name} ({m.nim}) · {m.role}{m.id === me?.id ? ' · kamu' : ''}</option>
@@ -71,6 +71,7 @@ function ClassLeaderRow({ klass, leader, onChanged }: { klass: ClassInfo; leader
 
 function AdminConsole() {
   const [pending, setPending] = useState<PendingClass[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [leaders, setLeaders] = useState<Map<string, ProfileSummary>>(new Map());
@@ -81,15 +82,13 @@ function AdminConsole() {
     () =>
       Promise.all([repo.listPendingClasses(), repo.fetchAllClasses(), repo.fetchHolidays(), repo.fetchClassLeaders()]).then(
         ([p, c, h, l]) => {
+          setLoadError(null);
           setPending(p);
           setClasses(c.filter((x) => x.status === 'active'));
           setHolidays(h);
           setLeaders(new Map(l.map((x) => [x.class_id!, x])));
         },
-        (err) => {
-          toast.error(errorText(err));
-          setPending([]);
-        }
+        (err) => setLoadError(errorText(err, 'Data admin gagal dimuat.'))
       ),
     []
   );
@@ -98,16 +97,29 @@ function AdminConsole() {
     load();
   }, [load]);
 
+  if (loadError) {
+    return (
+      <div className="max-w-md mx-auto py-10">
+        <Card className="text-center space-y-3">
+          <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">{loadError}</p>
+          <button onClick={() => { setLoadError(null); load(); }} className={btnPrimary}>Coba lagi</button>
+        </Card>
+      </div>
+    );
+  }
   if (!pending) return <PageLoader />;
 
-  const act = async (fn: () => Promise<unknown>, success: string) => {
+  /** true bila aksi berhasil. */
+  const act = async (fn: () => Promise<unknown>, success: string): Promise<boolean> => {
     setBusy(true);
     try {
       await fn();
       toast.success(success);
       await load();
+      return true;
     } catch (err) {
       toast.error(errorText(err));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -161,13 +173,14 @@ function AdminConsole() {
           className="flex flex-wrap gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            void act(() => repo.addHoliday(newHoliday.date, newHoliday.description), 'Hari libur ditambahkan.').then(() =>
+            void act(() => repo.addHoliday(newHoliday.date, newHoliday.description), 'Hari libur ditambahkan.').then((ok) =>
+              ok &&
               setNewHoliday((h) => ({ ...h, description: '' }))
             );
           }}
         >
-          <input type="date" className={`${inputCls} !w-40`} value={newHoliday.date} onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })} required />
-          <input className={`${inputCls} flex-1 min-w-[12rem]`} placeholder="Keterangan, mis. Maulid Nabi" value={newHoliday.description}
+          <input type="date" aria-label="Tanggal libur" className={`${inputCls} !w-40`} value={newHoliday.date} onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })} required />
+          <input aria-label="Keterangan hari libur" className={`${inputCls} flex-1 min-w-[12rem]`} placeholder="Keterangan, mis. Maulid Nabi" value={newHoliday.description}
             onChange={(e) => setNewHoliday({ ...newHoliday, description: e.target.value })} required minLength={2} />
           <button disabled={busy} className={btnPrimary}><Plus className="w-3.5 h-3.5" /> Tambah</button>
         </form>

@@ -106,11 +106,11 @@ function SecuritySettings() {
                 <Copy className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div>
-              <label className={labelCls}>2. Masukkan 6 digit kode dari aplikasi</label>
+            <label className="block">
+              <span className={labelCls}>2. Masukkan 6 digit kode dari aplikasi</span>
               <input className={`${inputCls} text-center tracking-[0.5em] font-mono text-base`} inputMode="numeric" autoComplete="one-time-code"
                 value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" />
-            </div>
+            </label>
             <div className="flex gap-2">
               <button disabled={busy || code.length !== 6} className={btnPrimary}>
                 {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />} Aktifkan

@@ -82,6 +82,16 @@ export const LeaveForm: React.FC = () => {
       return;
     }
 
+    // Mode proxy wajib memilih mahasiswa lain yang aktif (bukan fallback ke diri sendiri)
+    if (isProxy && !availableStudents.some((p) => p.id === selectedStudentId)) {
+      setErrorMessage(
+        availableStudents.length === 0
+          ? 'Belum ada anggota aktif lain di kelas ini untuk diajukan izinnya.'
+          : 'Pilih mahasiswa yang diajukan izinnya.'
+      );
+      return;
+    }
+
     if (!effectiveCourseId) {
       setErrorMessage('Pilih mata kuliah terlebih dahulu.');
       return;

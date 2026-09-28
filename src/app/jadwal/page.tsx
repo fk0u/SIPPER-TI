@@ -9,7 +9,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import * as repo from '@/lib/data/supabaseRepository';
-import { DAY_NAMES_MON_FIRST, dayNameID } from '@/lib/date';
+import { DAY_NAMES_MON_FIRST, dayIndexID, dayNameWITA } from '@/lib/date';
 import { isKM, isSupervisor } from '@/lib/permissions';
 import { Badge, Card, Empty, PageHeader, btnDanger, btnGhost, btnPrimary, errorText } from '@/components/ui/kit';
 import type { Course, Lecturer } from '@/types/database';
@@ -88,11 +88,13 @@ function Schedule() {
 
   if (!isLoaded || !klass) return <PageLoader label="Memuat jadwal..." />;
 
-  const today = dayNameID();
-  const sipenMembers = profiles.filter((p) => p.status === 'active' && p.role === 'sipen');
+  const today = dayNameWITA();
+  const sipenMembers = profiles.filter((p) => p.status === 'active' && p.role === 'sipen' && p.class_id === klass.id);
   const nameById = new Map(profiles.map((p) => [p.id, p.full_name]));
   const sipenOf = (courseId: string) => courseSipen.filter((cs) => cs.course_id === courseId).map((cs) => cs.user_id);
-  const unscheduled = courses.filter((c) => !c.day_of_week || !DAY_NAMES_MON_FIRST.includes(c.day_of_week as never));
+  // Nama hari dicocokkan tanpa peduli huruf besar/kecil, sama dengan day_index() di database
+  const dayOf = (c: Course) => (dayIndexID(c.day_of_week) < 0 ? null : DAY_NAMES_MON_FIRST[(dayIndexID(c.day_of_week) + 6) % 7]);
+  const unscheduled = courses.filter((c) => dayOf(c) === null);
 
   const remove = async (c: Course) => {
     if (!window.confirm(`Hapus ${c.code} — ${c.name}? Semua izin pada mata kuliah ini ikut terhapus.`)) return;
@@ -201,7 +203,7 @@ function Schedule() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {DAY_NAMES_MON_FIRST.map((day) => {
             const list = courses
-              .filter((c) => c.day_of_week === day)
+              .filter((c) => dayOf(c) === day)
               .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''));
             if (list.length === 0 && (day === 'Sabtu' || day === 'Minggu')) return null;
             return (

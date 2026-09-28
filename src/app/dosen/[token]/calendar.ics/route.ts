@@ -11,7 +11,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': 'inline; filename="jadwal-mengajar.ics"',
-      'Cache-Control': 'private, max-age=900',
+      'Cache-Control': 'no-store', // link bisa diganti kapan saja
       'X-Robots-Tag': 'noindex',
     },
   });

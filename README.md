@@ -24,10 +24,29 @@ Satu platform untuk banyak kelas. Mahasiswa mendaftar dengan NIM lalu memilih ke
 - **Jadwal mingguan** per kelas (menu *Jadwal*), dilihat semua anggota, dikelola Sipen/KM.
 - **Direktori dosen lintas kelas**: dosen dikenali dari nomor WhatsApp, jadi dosen yang mengajar di beberapa kelas tetap satu data dengan satu link.
 - **Portal dosen** `/dosen/<token>` tanpa login: jadwal mengajar di semua kelas, hari libur mendatang, rekap izin disetujui (tanpa alasan & berkas), cetak, dan **kalender `.ics`** untuk HP.
-- **Pengingat WhatsApp** per mata kuliah: H-1 atau H-0, jam kirim, tujuan alternatif (nomor / grup), melewati hari libur. Template per kelas (sintaks Go `{{.NamaDosen}}` kompatibel SiPenDosa) dengan pratinjau langsung.
-- **WhatsApp per kelas**: Sipen/KM menautkan nomor lewat QR atau kode pairing. Pengiriman dengan jeda acak 5–15 dtk, simulasi mengetik, retry 3× dengan backoff.
+- **Papan jadwal publik kelas** `/kelas/<token>` (+ `.ics`): diaktifkan Sipen/KM lewat *Jadwal → Bagikan*, tanpa data mahasiswa.
+- **Pengingat WhatsApp** per mata kuliah: H-1 atau H-0, jam kirim, tujuan alternatif (nomor / **grup WhatsApp yang diikuti nomor kelas**), melewati hari libur, hanya dalam **jam operasional** kelas (default 08:00–16:00).
+- **Pusat WhatsApp** (menu *WhatsApp*): tautkan nomor kelas via QR / kode pairing, statistik pengiriman, **hitung mundur pengingat berikutnya**, **mode uji (dry run)**, template per kelas (sintaks Go `{{.NamaDosen}}` kompatibel SiPenDosa) dengan pratinjau & **riwayat versi**, riwayat pesan dengan isi lengkap, batal & **kirim ulang**. Pengiriman memakai jeda acak 5–15 dtk, simulasi mengetik, retry 3× dengan backoff.
 
-### 4. Superadmin
+#### Kesetaraan fitur SiPenDosa
+
+| SiPenDosa | Di platform |
+| :--- | :--- |
+| WhatsApp engine (QR, kode pairing, anti-ban presence & jitter) | ✅ worker Go, satu sesi per kelas |
+| Smart scheduler H-1/H-0, WITA, hari libur, jam operasional | ✅ |
+| Hitung mundur jadwal berikutnya, statistik dashboard | ✅ menu WhatsApp |
+| Template dinamis + live preview + audit trail versi | ✅ per kelas |
+| Antrean persisten, auto-retry 3× backoff, batal / kirim sekarang | ✅ + kirim ulang pesan gagal |
+| Dry run | ✅ per kelas |
+| Pemilih grup WhatsApp (Issue #2) | ✅ disinkron worker tiap 30 menit |
+| Papan jadwal publik + `.ics` (Issue #4) | ✅ per kelas & per dosen |
+| 2FA TOTP | ✅ menu *Keamanan*, ditegakkan di proxy & RLS |
+| Terminal console, auto-updater, installer desktop/APK, jembatan C++, tunneling (Issue #3) | ➖ tidak relevan: platform sudah online di server (terminal server: Cockpit) |
+
+### 4. Keamanan akun
+- **2FA (TOTP)** opsional untuk semua akun (*Keamanan (2FA)* di menu akun). Akun dengan 2FA yang baru login password (sesi `aal1`) tidak punya hak kelas/admin apa pun sampai kode dimasukkan — ditegakkan oleh proxy **dan** helper RLS (`mfa_satisfied()`).
+
+### 5. Superadmin
 - ACC / tolak pengajuan kelas, melihat semua kelas & KM-nya, mengganti KM, mengelola hari libur global.
 
 ---
@@ -77,11 +96,13 @@ Web tidak pernah bicara langsung dengan worker: web menulis **keinginan** lewat 
 src/app/
   register/  menunggu/            registrasi & halaman tunggu ACC
   jadwal/  anggota/  kelola/      jadwal kelas, anggota, hub menu kelola (mobile)
-  admin/dosen/  whatsapp/         dosen & link pribadi, WhatsApp kelas + template + antrean
-  superadmin/                     ACC kelas & hari libur
+  admin/dosen/  whatsapp/         dosen & link pribadi, pusat WhatsApp (status, statistik, template, antrean)
+  superadmin/                     ACC kelas, ganti KM, hari libur
+  settings/keamanan/              2FA (TOTP)
   dosen/[token]/ (+ calendar.ics) portal dosen tanpa login
+  kelas/[token]/ (+ calendar.ics) papan jadwal publik kelas
   approval/  leave/new/  settings/password/  login/  api/auth/callback/
-src/lib/  permissions, routes, nav, ics, reminderTemplate, data/supabaseRepository
+src/lib/  permissions, routes, nav, ics, reminderTemplate, nextReminder, publicPortal, data/supabaseRepository
 supabase/migrations/              skema (20260928_multi_class_platform.sql = platform multi-kelas)
 worker/                           mesin WhatsApp (Go)
 scripts/                          test-rls.sh, e2e-api.py, seed-auth-users.mjs
@@ -99,7 +120,7 @@ npm run dev                  # http://localhost:3000
 
 Aplikasi butuh Supabase (tidak ada lagi mode demo). Paling mudah memakai Supabase server lewat SSH tunnel
 (`ssh -L 8000:127.0.0.1:8000 …` lalu `NEXT_PUBLIC_SUPABASE_URL=http://localhost:8000`) atau Supabase CLI lokal.
-Migrasi dijalankan berurutan: `20260921_initial_schema.sql` → `20260927_security_hardening.sql` → `20260928_multi_class_platform.sql` → `20260929_km_handover.sql`.
+Migrasi dijalankan berurutan: `20260921_initial_schema.sql` → `20260927_security_hardening.sql` → `20260928_multi_class_platform.sql` → `20260929_km_handover.sql` → `20260930_sipendosa_parity.sql`.
 Data contoh (staging saja): `CLASS_ID` kosong + `node scripts/seed-auth-users.mjs`, lalu `supabase/seed.sql`.
 
 ### Kualitas & pengujian
@@ -123,6 +144,8 @@ npm run test:e2e-api    # di server: registrasi → ACC → jadwal → portal �
 
 Deploy ulang aplikasi: `rsync` kode → `npm ci && npm run build` → `pm2 reload sipper`.
 Deploy ulang worker: `cd worker && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o sipper-worker .` → salin ke `/opt/sipper-worker/` → `sudo systemctl restart sipper-worker`.
+Role DB worker (`sipper_worker`) butuh grant ke tabel yang ditulisnya (`wa_sessions`, `wa_messages`, `wa_groups`, `courses.last_reminded_on`).
+Vercel dinonaktifkan untuk repo ini (`vercel.json` → `git.deploymentEnabled: false`).
 
 **Superadmin pertama** (sekali saja, setelah mendaftar lewat `/register` dan mengajukan kelas):
 ```sql

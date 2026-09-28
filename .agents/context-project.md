@@ -35,6 +35,7 @@ Sumber kebenaran: RLS & RPC di `supabase/migrations/20260928_multi_class_platfor
 - Dosen: tabel `lecturers` lintas kelas (unik per nomor WA), link pribadi `/dosen/<access_token>` via RPC `get_lecturer_portal`.
 - WhatsApp: `wa_sessions` (per kelas) & `wa_messages` (antrean) hanya ditulis lewat RPC; worker Go (`worker/`) menulis status.
 - Mode demo sudah dihapus: aplikasi selalu butuh Supabase.
+- RPC yang memakai pgcrypto (`gen_random_bytes`) wajib `SET search_path = public, extensions` (di Supabase pgcrypto ada di skema `extensions`; tes RLS di PostgreSQL biasa tidak menangkap ini — jalankan `scripts/e2e-api.py`).
 
 ---
 
@@ -48,7 +49,9 @@ Sumber kebenaran: RLS & RPC di `supabase/migrations/20260928_multi_class_platfor
 | `/leave/new`, `/jadwal` | aktif | Ajukan izin; jadwal kelas (Sipen/KM mengelola) |
 | `/approval`, `/anggota`, `/admin/dosen`, `/whatsapp` | Sipen, KM | Verifikasi izin, anggota, dosen & link, WhatsApp kelas |
 | `/kelola` | aktif | Hub menu kelola untuk mobile |
-| `/superadmin` | superadmin | ACC kelas, hari libur |
+| `/superadmin` | superadmin | ACC kelas, ganti KM, hari libur |
+| `/settings/keamanan` | aktif | 2FA TOTP (ditegakkan proxy + helper RLS `mfa_satisfied()`) |
+| `/kelas/[token]` (+`/calendar.ics`) | publik | Papan jadwal publik kelas |
 | `/dosen/[token]` (+`/calendar.ics`) | publik | Portal dosen tanpa login |
 | `/settings/password` | login | Ganti password (wajib untuk akun NIM default) |
 

@@ -438,6 +438,20 @@ SELECT pg_temp.expect_rows('2FA: sesi aal2 mendapat data kelas', $q$SELECT 1 FRO
 SELECT pg_temp.expect_rows('2FA: sesi aal2 mendapat hak KM', $q$SELECT wa_request('off')$q$, 1);
 RESET ROLE;
 SELECT pg_temp.act_as(NULL);
+INSERT INTO auth.mfa_factors (user_id, status) VALUES ('a0000000-0000-0000-0000-000000000001', 'verified');
+SET ROLE authenticated;
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+SELECT pg_temp.expect_rows('2FA: sesi password saja tidak melihat kelasnya', $q$SELECT 1 FROM classes$q$, 0);
+SELECT pg_temp.expect_rows('2FA: sesi password saja tidak melihat izin (alasan medis) sendiri', $q$SELECT 1 FROM leave_requests$q$, 0);
+SELECT pg_temp.expect_error('2FA: sesi password saja tidak bisa mengunggah lampiran',
+    $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('permit-proofs', 'a0000000-0000-0000-0000-000000000001/x.jpg')$q$,
+    'row-level security');
+SELECT pg_temp.expect_rows('2FA: profil sendiri tetap terbaca untuk layar kode', $q$SELECT 1 FROM profiles WHERE id = auth.uid()$q$, 1);
+SELECT set_config('request.jwt.claims',
+    json_build_object('sub', 'a0000000-0000-0000-0000-000000000001', 'role', 'authenticated', 'aal', 'aal2')::text, false);
+SELECT pg_temp.expect_rows('2FA: sesi aal2 melihat izinnya lagi', $q$SELECT 1 FROM leave_requests$q$, 1);
+RESET ROLE;
+SELECT pg_temp.act_as(NULL);
 DELETE FROM auth.mfa_factors;
 SET ROLE authenticated;
 SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000007');

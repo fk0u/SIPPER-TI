@@ -184,7 +184,7 @@ function MembersManager() {
 
 /** Matkul yang dipegang seorang Sipen/KM: tampil sebagai chip; KM/superadmin bisa mengubahnya. */
 function CourseAssigner({ member, canEdit }: { member: ProfileSummary; canEdit: boolean }) {
-  const { courses, courseSipen, load } = useLeaveStore();
+  const { courses, courseSipen, load, isLoaded, loadError } = useLeaveStore();
   const assigned = courseSipen.filter((cs) => cs.user_id === member.id).map((cs) => cs.course_id);
   const [editing, setEditing] = useState<Set<string> | null>(null);
   const [saving, setSaving] = useState(false);
@@ -219,13 +219,19 @@ function CourseAssigner({ member, canEdit }: { member: ProfileSummary; canEdit: 
               </span>
             ))
         )}
-        {canEdit && editing === null && (
+        {canEdit && editing === null && loadError && (
+          <button onClick={() => void load()} className="text-[11px] text-rose-600 hover:underline ml-1">
+            Data matkul gagal dimuat — coba lagi
+          </button>
+        )}
+        {/* Edit hanya setelah jadwal & penugasan termuat: pilihan kosong tak boleh menghapus penugasan */}
+        {canEdit && editing === null && isLoaded && !loadError && (
           <button onClick={() => setEditing(new Set(assigned))} className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline ml-1">
             Atur matkul
           </button>
         )}
       </div>
-      {editing && (
+      {editing && isLoaded && !loadError && (
         <div className="p-3 rounded-xl border border-slate-200 dark:border-white/10 space-y-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {courses.map((c) => (

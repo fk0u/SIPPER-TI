@@ -730,6 +730,9 @@ SELECT pg_temp.expect_error('matkul kelas lain ditolak',
     'kelas yang sama');
 SELECT pg_temp.expect_rows('KM mengosongkan tugas Sipen lalu mengembalikan',
     $q$SELECT set_member_courses('a0000000-0000-0000-0000-000000000002', ARRAY['c1111111-1111-1111-1111-111111111111']::uuid[])$q$, 1);
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000007');
+SELECT pg_temp.expect_rows('superadmin menugaskan matkul Sipen',
+    $q$SELECT set_member_courses('a0000000-0000-0000-0000-000000000002', ARRAY['c1111111-1111-1111-1111-111111111111']::uuid[])$q$, 1);
 SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002');
 SELECT pg_temp.expect_error('Sipen tidak bisa menugaskan matkul',
     $q$SELECT set_member_courses(auth.uid(), ARRAY['c2222222-2222-2222-2222-222222222222']::uuid[])$q$, 'Hanya KM');
@@ -739,11 +742,19 @@ SELECT pg_temp.expect_error('KM kelas lain tidak bisa menugaskan',
 RESET ROLE;
 SELECT pg_temp.act_as(NULL);
 
+UPDATE lecturers SET last_accessed_at = NULL, access_count = 0 WHERE access_token = repeat('ab', 24);
 SET ROLE anon;
-SELECT get_lecturer_portal(repeat('ab', 24)) IS NOT NULL;
+SELECT pg_temp.expect_value('portal dosen terbuka (dicatat)',
+    $q$SELECT get_lecturer_portal(repeat('ab', 24)) ->> 'status'$q$, 'ok');
 RESET ROLE;
 SELECT pg_temp.expect_value('akses portal dosen tercatat',
-    $q$SELECT (last_accessed_at IS NOT NULL AND access_count >= 1 AND token_expires_at > now())::text FROM lecturers WHERE access_token = repeat('ab', 24)$q$, 'true');
+    $q$SELECT (last_accessed_at IS NOT NULL AND access_count = 1)::text FROM lecturers WHERE access_token = repeat('ab', 24)$q$, 'true');
+SELECT pg_temp.expect_value('batas link: semester ganjil → 15 Feb 00:00 WITA',
+    $q$SELECT (lecturer_token_expiry_for('2026-09-29') AT TIME ZONE 'UTC')::text$q$, '2027-02-14 16:00:00');
+SELECT pg_temp.expect_value('batas link: Januari masih semester ganjil',
+    $q$SELECT (lecturer_token_expiry_for('2027-01-10') AT TIME ZONE 'UTC')::text$q$, '2027-02-14 16:00:00');
+SELECT pg_temp.expect_value('batas link: semester genap → 15 Agu 00:00 WITA',
+    $q$SELECT (lecturer_token_expiry_for('2027-03-01') AT TIME ZONE 'UTC')::text$q$, '2027-08-14 16:00:00');
 UPDATE lecturers SET token_expires_at = now() - interval '1 minute' WHERE access_token = repeat('ab', 24);
 SET ROLE anon;
 SELECT pg_temp.expect_value('link dosen kedaluwarsa ditolak',

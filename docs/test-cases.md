@@ -105,8 +105,8 @@
 | **IZN-03** | Izin di hari libur / izin ganda / lewat 2×24 jam | Ditolak server (dan dicegah di wizard untuk tanggal). | RLS, E2E API |
 | **IZN-04** | Batalkan izin pending | Hanya mahasiswanya/pengajunya & selama pending; tercatat di audit. | RLS, E2E API |
 | **AUD-01** | Riwayat aktivitas | ACC/tolak/batal izin, ACC/peran/keluarkan anggota, reset sandi tercatat; hanya KM kelas & superadmin; reset sandi mencabut sesi lama. | RLS, E2E API |
-| **KLS-10** | Atur matkul Sipen dari halaman Anggota | KM/superadmin memilih banyak matkul sekaligus; KM boleh tercatat sebagai Sipen; lintas kelas ditolak. | RLS |
-| **DSN-05** | Masa berlaku link dosen | Berlaku s/d akhir semester + 14 hari; kedaluwarsa → pesan khusus, lampiran ditolak; link baru memperpanjang; akses terakhir tercatat. | RLS |
+| **KLS-10** | Atur matkul Sipen dari halaman Anggota | KM/superadmin (keduanya diuji) memilih banyak matkul sekaligus; KM boleh tercatat sebagai Sipen; lintas kelas ditolak. | RLS |
+| **DSN-05** | Masa berlaku link dosen | Berlaku s/d akhir semester + 14 hari (batas ganjil/Januari/genap diuji); kedaluwarsa → pesan khusus, lampiran ditolak; link baru memperpanjang; akses terakhir tercatat. | RLS |
 | **DSN-01** | Portal dosen tanpa login + `.ics` | Jadwal lintas kelas, izin approved dengan alasan & jam; kalender WITA, dibatasi horizon libur. | RLS, Unit, E2E API |
 | **DSN-03** | Lampiran surat di portal dosen | Dibuka lewat route server (token divalidasi DB, signed URL 5 menit); path storage tidak pernah dikirim. | RLS, E2E API |
 | **DSN-04** | Export Excel / ZIP | Excel rekap + ringkasan; ZIP berisi Excel + folder lampiran dengan tautan relatif; mengikuti filter. | E2E API |

@@ -145,7 +145,7 @@ npm run test:e2e-api    # di server: registrasi → ACC → jadwal → portal �
 | Bagian | Lokasi |
 | :--- | :--- |
 | Aplikasi | `/project/sipper-ti` → PM2 `sipper` (`/project/ecosystem.config.js`, cluster 4) |
-| Supabase | `/project/supabase` (docker compose; port hanya `127.0.0.1`) |
+| Supabase | `/project/sipperti-supabase` (docker compose `sipperti`, database `sipperti`; port hanya `127.0.0.1`) |
 | Worker | `/opt/sipper-worker/sipper-worker`, service `sipper-worker`, env `/etc/sipper-worker.env` (role DB `sipper_worker`, BYPASSRLS, skema `whatsmeow`) |
 | Nginx | `/etc/nginx/sites-available/platform` (app / api / studio) |
 

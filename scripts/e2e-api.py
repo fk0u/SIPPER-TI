@@ -3,14 +3,14 @@
 portal dosen → WhatsApp worker). Membuat akun uji NIM 9999…, lalu menghapusnya.
 
 Pemakaian (di server):  sudo python3 scripts/e2e-api.py
-Butuh: /project/supabase/.env (publishable key) dan akses docker compose untuk seed/cleanup.
+Butuh: /project/sipperti-supabase/.env (publishable key) dan akses docker compose untuk seed/cleanup.
 """
 import base64, datetime, hashlib, hmac, io, json, secrets, struct, subprocess, sys, time, urllib.error, urllib.request, zipfile
 from zoneinfo import ZoneInfo
 
 APP = "https://app.sipper-ics.duckdns.org"
 API = "https://api.sipper-ics.duckdns.org"
-KEY = next(l.split("=", 1)[1].strip() for l in open("/project/supabase/.env") if l.startswith("SUPABASE_PUBLISHABLE_KEY="))
+KEY = next(l.split("=", 1)[1].strip() for l in open("/project/sipperti-supabase/.env") if l.startswith("SUPABASE_PUBLISHABLE_KEY="))
 DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
 passed = failed = 0
 # Data uji unik per run; hanya data yang dibuat run ini yang dibersihkan (server produksi)
@@ -32,8 +32,8 @@ def first(body):
 
 
 def sql(q):
-    out = subprocess.run(["docker", "compose", "exec", "-T", "db", "psql", "-U", "postgres", "-Atc", q],
-                         cwd="/project/supabase", capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    out = subprocess.run(["docker", "compose", "exec", "-T", "db", "psql", "-U", "postgres", "-d", "sipperti", "-Atc", q],
+                         cwd="/project/sipperti-supabase", capture_output=True, text=True, stdin=subprocess.DEVNULL)
     if out.returncode:
         raise RuntimeError(out.stderr)
     return out.stdout.strip()
@@ -361,7 +361,7 @@ finally:
         except Exception as e:  # noqa: BLE001
             print(f"PERINGATAN pembersihan gagal: {stmt}: {e}")
     if uploaded_paths:  # berkas storage tidak ikut terhapus bersama akun
-        svc = next(l.split("=", 1)[1].strip() for l in open("/project/supabase/.env") if l.startswith("SERVICE_ROLE_KEY="))
+        svc = next(l.split("=", 1)[1].strip() for l in open("/project/sipperti-supabase/.env") if l.startswith("SERVICE_ROLE_KEY="))
         st, _, _ = fetch(f"{API}/storage/v1/object/permit-proofs", json.dumps({"prefixes": uploaded_paths}).encode(), method="DELETE",
                          headers={"apikey": svc, "Authorization": f"Bearer {svc}", "Content-Type": "application/json"})
         if st != 200:

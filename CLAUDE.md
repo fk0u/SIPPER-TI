@@ -50,12 +50,13 @@ npm run test:e2e-api  # di server produksi, terhadap Supabase & worker sungguhan
 
 ## Produksi (VPS Azure `kvm`, 85.211.245.134, zona WITA)
 - App: `/project/sipper-ti` → PM2 `sipper` (cluster 4, `/project/ecosystem.config.js`) — https://app.sipper-ics.duckdns.org
-- Supabase: `/project/supabase` (docker compose, port hanya 127.0.0.1). Superuser DB:
-  `docker compose exec -T db psql -U supabase_admin -d postgres` (role `postgres` bukan superuser). `docker compose exec` menelan
+- Supabase khusus project ini: `/project/sipperti-supabase` (compose project `sipperti`, container `sipperti-*`,
+  **database `sipperti`**, tenant pooler `sipperti`; port hanya 127.0.0.1; `COMPOSE_FILE` di `.env` memuat
+  `docker-compose.local.yml`). Superuser DB: `docker compose exec -T db psql -U supabase_admin -d sipperti` (role `postgres` bukan superuser). `docker compose exec` menelan
   stdin heredoc — pakai `</dev/null` bila tidak memberi input.
 - Worker: `/opt/sipper-worker/sipper-worker`, systemd `sipper-worker`, env `/etc/sipper-worker.env`
   (role DB `sipper_worker`, BYPASSRLS, skema `whatsmeow`; tabel baru yang dibaca/ditulis worker butuh GRANT).
-- Menerapkan migrasi: `docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction < file.sql`.
+- Menerapkan migrasi: `docker compose exec -T db psql -U postgres -d sipperti -v ON_ERROR_STOP=1 --single-transaction < file.sql`.
 - Domain: DuckDNS `sipper-ics.duckdns.org` (token di `/etc/duckdns/token`, root-only) → `app.` (Next), `api.` (Supabase API),
   `studio.` (Supabase Studio; login basic auth nginx, kredensial dashboard disisipkan nginx dari
   `/etc/nginx/studio-dashboard-auth.conf`). Domain sslip lama: `app.` dialihkan 301, `api.`/`studio.` tetap dilayani.

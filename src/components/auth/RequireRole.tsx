@@ -9,8 +9,8 @@ import { useHydrated } from '@/lib/useHydrated';
 import type { UserRole } from '@/types/database';
 
 interface RequireRoleProps {
-  /** Kosongkan untuk sekadar mewajibkan login. */
-  roles?: UserRole[];
+  /** Kosongkan untuk sekadar mewajibkan login + akun aktif. `admin` = superadmin. */
+  roles?: (UserRole | 'admin')[];
   children: React.ReactNode;
 }
 
@@ -22,12 +22,12 @@ export function PageLoader({ label = 'Memuat data...' }: { label?: string }) {
   );
 }
 
-/** Penjaga rute sisi klien (mode demo & lapisan UX mode live; server dijaga src/proxy.ts + RLS). */
+/** Penjaga rute sisi klien (lapisan UX; server dijaga src/proxy.ts + RLS). */
 export function RequireRole({ roles, children }: RequireRoleProps) {
   const router = useRouter();
   const pathname = usePathname();
   const hydrated = useHydrated();
-  const { user, isAuthenticated, isReady } = useAuthStore();
+  const { user, isAuthenticated, isReady, mfaPending } = useAuthStore();
 
   const ready = hydrated && isReady;
   const loggedIn = Boolean(isAuthenticated && user);
@@ -38,9 +38,12 @@ export function RequireRole({ roles, children }: RequireRoleProps) {
     }
   }, [ready, loggedIn, pathname, router]);
 
-  if (!ready || !loggedIn || !user) return <PageLoader />;
+  // Akun pending / 2FA belum diverifikasi dialihkan AuthBootstrap
+  if (!ready || !loggedIn || !user || user.status !== 'active' || mfaPending) return <PageLoader />;
 
-  if (roles && !roles.includes(user.role)) {
+  const allowed =
+    !roles || roles.some((r) => (r === 'admin' ? user.is_admin : r === user.role));
+  if (!allowed) {
     return (
       <div className="min-h-[60dvh] flex items-center justify-center p-4">
         <div className="doppelrand-shell max-w-md w-full">
@@ -52,7 +55,7 @@ export function RequireRole({ roles, children }: RequireRoleProps) {
               <h1 className="text-lg font-bold text-slate-900 dark:text-white">Akses Ditolak</h1>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Halaman ini hanya untuk peran{' '}
-                <strong className="font-mono uppercase">{roles.join(' / ')}</strong>. Peran Anda saat ini:{' '}
+                <strong className="font-mono uppercase">{roles!.join(' / ')}</strong>. Peran Anda saat ini:{' '}
                 <strong className="font-mono uppercase">{user.role}</strong>.
               </p>
             </div>

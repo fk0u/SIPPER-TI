@@ -4,7 +4,9 @@
 // (wajib diganti saat login pertama).
 //
 // Pemakaian:
-//   NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SECRET_KEY=... node scripts/seed-auth-users.mjs [roster.csv]
+//   NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SECRET_KEY=... CLASS_ID=<uuid kelas> node scripts/seed-auth-users.mjs [roster.csv]
+//
+// Akun langsung aktif (tanpa ACC) di kelas CLASS_ID. Tanpa roster: akun demo di kelas demo supabase/seed.sql.
 //
 // Format CSV (dengan header): id,nim,full_name,role
 //   - id opsional (kosongkan agar dibuat otomatis); isi untuk mencocokkan supabase/seed.sql
@@ -20,6 +22,13 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !serviceKey) {
   console.error('Set NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SECRET_KEY terlebih dahulu.');
+  process.exit(1);
+}
+
+const DEMO_CLASS_ID = '0d000000-0000-0000-0000-00000000000d';
+const classId = process.env.CLASS_ID ?? (process.argv[2] ? '' : DEMO_CLASS_ID);
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(classId)) {
+  console.error('Set CLASS_ID (uuid kelas tujuan) untuk roster ini.');
   process.exit(1);
 }
 
@@ -69,6 +78,24 @@ for (const key of ['nim', 'id']) {
 }
 const supabase = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
+// Kelas tujuan harus aktif sebelum akun dibuat (handle_new_user menolak kelas yang belum aktif).
+// Kelas demo dibuat otomatis agar urutan seed (skrip ini → supabase/seed.sql) berjalan di database baru.
+if (classId === DEMO_CLASS_ID) {
+  const { error } = await supabase.from('classes').upsert(
+    { id: DEMO_CLASS_ID, name: 'Demo TI Internasional', program: 'Teknik Informatika', batch: '2026', status: 'active', approved_at: new Date().toISOString() },
+    { onConflict: 'id', ignoreDuplicates: true }
+  );
+  if (error) {
+    console.error(`Gagal menyiapkan kelas demo: ${error.message}`);
+    process.exit(1);
+  }
+}
+const { data: targetClass } = await supabase.from('classes').select('status').eq('id', classId).maybeSingle();
+if (targetClass?.status !== 'active') {
+  console.error(`Kelas ${classId} tidak ditemukan atau belum aktif.`);
+  process.exit(1);
+}
+
 let created = 0;
 let existing = 0;
 let failed = 0;
@@ -83,7 +110,9 @@ for (const { id, nim, full_name, role = 'mahasiswa' } of roster) {
     email: `${nim}@umkt.ac.id`,
     password: nim,
     email_confirm: true,
-    user_metadata: { full_name },
+    // app_metadata hanya bisa diisi service role: akun langsung aktif (lihat handle_new_user)
+    app_metadata: { preapproved: true },
+    user_metadata: { full_name, class_id: classId },
   });
 
   if (error && !/already|registered|exists/i.test(error.message)) {
@@ -109,7 +138,7 @@ for (const { id, nim, full_name, role = 'mahasiswa' } of roster) {
   // Selalu sinkronkan role dari roster — juga untuk akun yang sudah ada (roster berubah / percobaan sebelumnya gagal).
   const { data: updated, error: roleError } = await supabase
     .from('profiles')
-    .update({ role, full_name })
+    .update({ role, full_name, class_id: classId, status: 'active' })
     .eq('nim', nim)
     .select('id');
   if (roleError || !updated?.length) {

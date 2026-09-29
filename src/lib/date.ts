@@ -33,7 +33,40 @@ export function isDateInRange(date: string, start: string, end: string): boolean
 }
 
 const DAY_NAMES_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as const;
+/** Urutan tampilan jadwal kuliah (Senin dulu). Selaras dengan `day_index()` di database. */
+export const DAY_NAMES_MON_FIRST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'] as const;
+
+/** Indeks hari (0 = Minggu) dari nama hari Indonesia, -1 bila tidak dikenal. */
+export function dayIndexID(name: string | null | undefined): number {
+  const n = (name ?? '').trim().replace(/'/g, '').toLowerCase();
+  return DAY_NAMES_ID.findIndex((d) => d.toLowerCase() === n);
+}
 
 export function dayNameID(now: Date = new Date()): string {
   return DAY_NAMES_ID[now.getDay()];
+}
+
+/** Nama hari menurut WITA (kampus), tidak bergantung zona waktu server/perangkat. */
+export function dayNameWITA(now: Date = new Date()): string {
+  return DAY_NAMES_ID[new Date(now.getTime() + 8 * 3600_000).getUTCDay()];
+}
+
+/** Tanggal hari ini menurut WITA, YYYY-MM-DD. */
+export function todayWITA(now: Date = new Date()): string {
+  return new Date(now.getTime() + 8 * 3600_000).toISOString().slice(0, 10);
+}
+
+/** Jam sekarang menurut WITA, HH:MM. */
+export function nowTimeWITA(now: Date = new Date()): string {
+  return new Date(now.getTime() + 8 * 3600_000).toISOString().slice(11, 16);
+}
+
+/** Semester berjalan, mis. "2026/2027-1" (Agustus–Januari = ganjil, Februari–Juli = genap). */
+export function currentSemester(now: Date = new Date()): string {
+  // Kalender kampus (WITA), tidak bergantung zona waktu server/perangkat
+  const wita = new Date(now.getTime() + 8 * 3600_000);
+  const y = wita.getUTCFullYear();
+  const m = wita.getUTCMonth() + 1;
+  const start = m >= 8 ? y : y - 1;
+  return `${start}/${start + 1}-${m >= 8 || m === 1 ? 1 : 2}`;
 }

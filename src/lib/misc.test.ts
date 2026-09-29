@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isCampusEmail, safeNextPath } from './redirect';
 import { formatFileSize, sanitizeFileName, validateAttachmentFiles } from './attachments';
-import { buildLecturerRecap } from './lecturerRecap';
-import { INITIAL_COURSES, INITIAL_LECTURER_TOKENS, INITIAL_LEAVE_REQUESTS } from './mockData';
 
 describe('redirect', () => {
   it('safeNextPath menolak open redirect', () => {
@@ -44,26 +42,5 @@ describe('attachments', () => {
   it('sanitizeFileName aman untuk path storage', () => {
     expect(sanitizeFileName('../surat dokter (1).jpg')).toBe('.._surat_dokter_1_.jpg');
     expect(sanitizeFileName('a/b\\c.pdf')).not.toMatch(/[\\/]/);
-  });
-});
-
-describe('buildLecturerRecap', () => {
-  it('hanya izin approved, tanpa alasan', () => {
-    const recap = buildLecturerRecap('demo-dosen-semua-matkul', INITIAL_LECTURER_TOKENS, INITIAL_LEAVE_REQUESTS, INITIAL_COURSES);
-    expect(recap.status).toBe('ok');
-    if (recap.status !== 'ok') return;
-    expect(recap.leaves.length).toBe(INITIAL_LEAVE_REQUESTS.filter((r) => r.status === 'approved').length);
-    expect(JSON.stringify(recap)).not.toContain('Rawat inap');
-  });
-  it('token per mata kuliah membatasi cakupan', () => {
-    const recap = buildLecturerRecap('demo-dosen-hendra-2026', INITIAL_LECTURER_TOKENS, INITIAL_LEAVE_REQUESTS, INITIAL_COURSES);
-    if (recap.status !== 'ok') throw new Error('expected ok');
-    expect(recap.courses).toHaveLength(1);
-    expect(recap.leaves.every((l) => l.course_id === 'c1111111-1111-1111-1111-111111111111')).toBe(true);
-  });
-  it('token kedaluwarsa & tidak dikenal ditolak', () => {
-    expect(buildLecturerRecap('nope', INITIAL_LECTURER_TOKENS, [], []).status).toBe('not_found');
-    const later = new Date('2030-01-01T00:00:00Z');
-    expect(buildLecturerRecap('demo-dosen-hendra-2026', INITIAL_LECTURER_TOKENS, [], [], later).status).toBe('expired');
   });
 });

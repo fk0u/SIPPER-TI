@@ -1,151 +1,168 @@
 # SIPPER-TI
 
-> **Sistem Informasi Perizinan & Presensi Kelas Internasional Teknik Informatika**  
-> *Universitas Muhammadiyah Kalimantan Timur (UMKT)*
+> **Platform perizinan, jadwal kuliah & pengingat dosen untuk kelas-kelas di UMKT**
+> *Gabungan SIPPER-TI (perizinan & presensi) + [SiPenDosa](https://github.com/fk0u/SiPenDosa) (pengingat dosen via WhatsApp)*
 
-SIPPER-TI adalah aplikasi web modern kelas produksi untuk otomasi manajemen perizinan presensi mahasiswa kelas internasional, verifikasi keabsahan surat keterangan dokter/tugas oleh Sipen & KM, serta rekapitulasi kehadiran instan untuk Dosen Pengampu tanpa login.
-
----
-
-## 🚀 Fitur Unggulan Sistem
-
-### 1. 👥 Manajemen Peran Multi-Level (Role-Based Access Control)
-- **Mahasiswa:** Mengajukan izin pribadi (Sakit / Izin Pribadi / Tugas Lomba), melampirkan berkas bukti (PDF/Foto), dan melacak status verifikasi secara langsung.
-- **Sipen (Sie Pendidikan):** Memvalidasi bukti surat, menyetujui atau menolak perizinan dengan catatan alasan, serta mengajukan izin proxy atas nama mahasiswa lain yang berhalangan hadir.
-- **KM (Ketua Kelas):** Supervisor absensi kelas penuh, berwenang mengelola tautan token dosen, memantau rekap menyeluruh, dan memverifikasi izin di semua mata kuliah. Keputusan verifikasi bersifat final (tidak dapat diubah setelah disetujui/ditolak).
-- **Dosen Pengampu:** Mengakses rekapitulasi kehadiran mahasiswa secara instan melalui **Guest Access Token Link** tanpa perlu login atau registrasi akun.
-
-### 2. 📱 Arsitektur Navigasi Terpisah (Desktop vs Mobile)
-- **Desktop ($\ge 768\text{px}$):** Top Navigation Bar mengambang dengan efek *Liquid Glass*, menu rute lengkap dengan indikator aktif, badge antrean pending dinamis, popover pergantian profil demo, dan *Theme Toggle* minimalis.
-- **Mobile ($< 768\text{px}$):** Antarmuka native app shell yang dirancang untuk ergonomi jempol:
-  - **Top App Bar:** Menampilkan identitas sistem, tag peran aktif, dan tombol akses cepat profil.
-  - **Floating Bottom Dock:** Tab navigasi mengambang 4 menu (`Beranda`, `Ajukan Izin`, `Approval`, `Link Dosen`) dengan feedback sentuhan haptic, bebas dari bug overlay atau backdrop blur yang mengunci layar.
-
-### 3. 🎨 Estetika Visual Awwwards / Linear-Tier
-- **Double-Bezel (Doppelrand):** Arsitektur kartu berlapis ganda menyerupai hardware machined fisik dengan pembiasan tepi kaca bagian dalam.
-- **Tipografi:** Ditenagai oleh font teknikal **Geist** & **Geist Mono** via `next/font/google` dengan *tight tracking* dan *tabular figures* untuk angka data.
-- **Komponen ReactBits Terintegrasi:**
-  - `SpotlightCard`: Efek sorot kursor interaktif dengan inner edge lighting.
-  - `ShinyText`: Efek kemilau dinamis pada nama pengguna dan judul portal.
-  - `CountUp`: Animasi penghitungan angka live pada dashboard metrik presensi.
-- **Palet Warna Disiplin:** Basis netral Slate/Graphite dengan aksen tunggal *Electric Cobalt* dan penanda status semantik yang terkalibrasi.
-
-### 4. 🔗 Manajemen Tautan Publik Dosen
-- Pembuatan tautan token akses instan dengan masa aktif 180 hari.
-- Fitur **1-Klik Bagikan ke WhatsApp Dosen** dengan pesan pengantar sopan yang otomatis terformat.
-- Tampilan cetak ramah kertas (*print-ready layout*) untuk arsip perkuliahan fisik.
+Satu platform untuk banyak kelas. Mahasiswa mendaftar dengan NIM lalu memilih kelasnya; Sipen / KM kelas tersebut menyetujui. Izin kuliah diverifikasi Sipen/KM, jadwal kuliah dikelola per kelas, dosen mendapat **link pribadi tanpa login** berisi jadwal mengajarnya di semua kelas, dan pengingat kuliah dikirim otomatis ke WhatsApp dosen dari nomor WhatsApp kelas.
 
 ---
 
-## 🛠️ Tech Stack
+## 🚀 Fitur
+
+### 1. Kelas & akun
+- **Registrasi mandiri** dengan NIM + password, memilih kelas dari daftar kelas aktif. Akun berstatus *pending* sampai di-ACC **Sipen atau KM kelas itu** (menu *Anggota*). Menolak = akun dihapus, sehingga NIM bisa didaftarkan ulang pemilik aslinya.
+- **Mengajukan kelas baru**: siapa pun bisa mengajukan; setelah di-ACC **superadmin** platform, pengaju otomatis menjadi **KM**.
+- KM menunjuk Sipen, menyerahkan jabatan KM (KM lama menjadi Sipen), dan mengeluarkan anggota.
+- **Migrasi KM oleh superadmin**: di menu *Admin* superadmin bisa mengganti KM kelas mana pun (mis. KM lulus / akun hilang), termasuk mengambil kembali jabatan KM di kelasnya sendiri. Status superadmin tidak pernah ikut berubah dan superadmin tidak bisa dikeluarkan KM.
+- Akun massal dari KM tetap bisa dibuat lewat `scripts/seed-auth-users.mjs` (password awal = NIM, wajib diganti).
+
+### 2. Perizinan (SIPPER-TI)
+- Mahasiswa mengajukan izin (sakit / izin / keluar kampus / acara) dengan lampiran; Sipen/KM bisa mengajukan *proxy*.
+- Sipen memverifikasi izin mata kuliah yang ditugaskan kepadanya, KM semua mata kuliah **di kelasnya**. Keputusan final.
+
+### 3. Jadwal, dosen & pengingat (SiPenDosa)
+- **Jadwal mingguan** per kelas (menu *Jadwal*), dilihat semua anggota, dikelola Sipen/KM.
+- **Direktori dosen lintas kelas**: dosen dikenali dari nomor WhatsApp, jadi dosen yang mengajar di beberapa kelas tetap satu data dengan satu link.
+- **Portal dosen** `/dosen/<token>` tanpa login: jadwal mengajar di semua kelas, hari libur mendatang, rekap izin disetujui (tanpa alasan & berkas), cetak, dan **kalender `.ics`** untuk HP.
+- **Papan jadwal publik kelas** `/kelas/<token>` (+ `.ics`): diaktifkan Sipen/KM lewat *Jadwal → Bagikan*, tanpa data mahasiswa.
+- **Pengingat WhatsApp** per mata kuliah: H-1 atau H-0, jam kirim, tujuan alternatif (nomor / **grup WhatsApp yang diikuti nomor kelas**), melewati hari libur, hanya dalam **jam operasional** kelas (default 08:00–16:00).
+- **Pusat WhatsApp** (menu *WhatsApp*): tautkan nomor kelas via QR / kode pairing, statistik pengiriman, **hitung mundur pengingat berikutnya**, **mode uji (dry run)**, template per kelas (sintaks Go `{{.NamaDosen}}` kompatibel SiPenDosa) dengan pratinjau & **riwayat versi**, riwayat pesan dengan isi lengkap, batal & **kirim ulang**. Pengiriman memakai jeda acak 5–15 dtk, simulasi mengetik, retry 3× dengan backoff.
+
+#### Kesetaraan fitur SiPenDosa
+
+| SiPenDosa | Di platform |
+| :--- | :--- |
+| WhatsApp engine (QR, kode pairing, anti-ban presence & jitter) | ✅ worker Go, satu sesi per kelas |
+| Smart scheduler H-1/H-0, WITA, hari libur, jam operasional | ✅ |
+| Hitung mundur jadwal berikutnya, statistik dashboard | ✅ menu WhatsApp |
+| Template dinamis + live preview + audit trail versi | ✅ per kelas |
+| Antrean persisten, auto-retry 3× backoff, batal / kirim sekarang | ✅ + kirim ulang pesan gagal |
+| Dry run | ✅ per kelas |
+| Pemilih grup WhatsApp (Issue #2) | ✅ disinkron worker tiap 30 menit |
+| Papan jadwal publik + `.ics` (Issue #4) | ✅ per kelas & per dosen |
+| 2FA TOTP | ✅ menu *Keamanan*, ditegakkan di proxy & RLS |
+| Terminal console, auto-updater, installer desktop/APK, jembatan C++, tunneling (Issue #3) | ➖ tidak relevan: platform sudah online di server (terminal server: Cockpit) |
+
+### 4. Keamanan akun
+- **2FA (TOTP)** opsional untuk semua akun (*Keamanan (2FA)* di menu akun). Akun dengan 2FA yang baru login password (sesi `aal1`) tidak punya hak kelas/admin apa pun sampai kode dimasukkan — ditegakkan oleh proxy **dan** helper RLS (`mfa_satisfied()`).
+
+### 5. Superadmin
+- ACC / tolak pengajuan kelas, melihat semua kelas & KM-nya, mengganti KM, mengelola hari libur global.
+
+---
+
+## 👥 Peran & hak akses
+
+Sumber kebenaran: RLS & RPC di `supabase/migrations/` (diuji `supabase/tests/rls_test.sql`). Cermin sisi klien: `src/lib/permissions.ts`, `src/lib/routes.ts`.
+
+| Aksi | Pending | Mahasiswa | Sipen | KM | Superadmin | Dosen (link) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| Lihat data kelas | – | kelasnya | kelasnya | kelasnya | + daftar semua kelas | jadwal & izin approved miliknya |
+| Ajukan izin | – | sendiri | + proxy matkulnya | + proxy semua matkul kelas | sesuai peran kelasnya | – |
+| Verifikasi izin | – | – | matkul yang ditugaskan | semua matkul kelas | – | – |
+| ACC pendaftar kelas | – | – | ✓ | ✓ | – | – |
+| Atur peran / keluarkan anggota | – | – | – | ✓ | atur peran & KM semua kelas | – |
+| Kelola jadwal, dosen, WhatsApp | – | – | ✓ | ✓ | – | – |
+| ACC kelas baru, hari libur | – | – | – | – | ✓ | – |
+
+---
+
+## 🛠️ Arsitektur
+
+```
+Browser ──► Nginx ──► Next.js 16 (PM2 cluster)          app.<host>
+                 └──► Supabase self-hosted (Docker)      api.<host>  (Auth, PostgREST, Storage)
+                          ▲
+             sipper-worker (Go, systemd) ── whatsmeow ──► WhatsApp
+             • sinkron sesi WA per kelas   (wa_sessions)
+             • penjadwal pengingat H-1/H-0 (courses → wa_messages)
+             • pengirim antrean            (wa_messages)
+```
 
 | Komponen | Teknologi |
 | :--- | :--- |
-| **Framework** | [Next.js 16 (App Router + Turbopack)](https://nextjs.org/) |
-| **Bahasa** | [TypeScript 5](https://www.typescriptlang.org/) |
-| **UI Library** | [React 19](https://react.dev/) |
-| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
-| **State Management** | [Zustand 5](https://github.com/pmndrs/zustand) (dengan persist middleware) |
-| **Iconography** | [Lucide React](https://lucide.dev/) |
-| **Micro-Interactions** | [ReactBits](https://reactbits.dev/) |
-| **Font** | Geist Sans & Geist Mono |
-| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL + RLS, Auth, Storage) — opsional, fallback mode demo |
-| **Testing** | Vitest, SQL checks (`scripts/test-rls.sh`), GitHub Actions |
+| Web | Next.js 16 (App Router, `src/proxy.ts`), React 19, TypeScript, Tailwind CSS v4, Zustand, Lucide |
+| Data & Auth | Supabase self-hosted: PostgreSQL 17 + RLS, GoTrue, Storage |
+| Worker WhatsApp | Go + [whatsmeow](https://github.com/tulir/whatsmeow), pgx (`worker/`) |
+| Pengujian | Vitest, SQL RLS (`scripts/test-rls.sh`), Go test, uji API end-to-end (`scripts/e2e-api.py`) |
+
+Web tidak pernah bicara langsung dengan worker: web menulis **keinginan** lewat RPC (`wa_request`, `queue_reminder_now`, `queue_test_message`), worker menulis **status** (`wa_sessions.state`, QR, kode pairing) — keduanya lewat Postgres.
 
 ---
 
-## 📂 Struktur Direktori Proyek
+## 📂 Struktur
 
 ```
-SIPPER-TI/
-├── docs/                        # Dokumentasi arsitektur & roadmap
-│   ├── architecture.md          # Diagram sistem & skema relasi
-│   ├── design-system.md         # Standar desain, token, & komponen
-│   ├── user-manual.md           # Panduan penggunaan pengguna
-│   └── project/roadmap.md       # Roadmap milestone proyek
-├── src/
-│   ├── app/                     # Next.js App Router Pages
-│   │   ├── admin/tokens/        # Kelola Link Akses Dosen
-│   │   ├── approval/            # Terminal Review Perizinan
-│   │   ├── leave/new/           # Formulir Pengajuan Izin
-│   │   ├── lecturer/[token]/    # Portal Tamu Dosen (server-rendered via RPC)
-│   │   ├── login/               # Portal Masuk Akun Kampus
-│   │   ├── settings/password/   # Ganti kata sandi (wajib untuk akun NIM baru)
-│   │   ├── globals.css          # Desain tokens, doppelrand, liquid-glass
-│   │   ├── layout.tsx           # Root layout dengan Geist font
-│   │   └── page.tsx             # Beranda Bento 2.0 & Feed Izin
-│   ├── components/
-│   │   ├── admin/               # Komponen Token Dosen
-│   │   ├── approval/            # Komponen Review & Validasi
-│   │   ├── auth/                # Komponen Login SSO & NIM
-│   │   ├── layout/              # Navbar (Desktop) & BottomNav (Mobile)
-│   │   ├── leave/               # Form Izin, Kartu Izin, Document Viewer
-│   │   ├── lecturer/            # Rekap Presensi Dosen & Cetak
-│   │   └── reactbits/           # SpotlightCard, ShinyText, CountUp
-│   ├── lib/                     # permissions, date, attachments, data/ (Supabase repo), supabase/
-│   ├── proxy.ts                 # Guard rute & refresh sesi (Next.js 16)
-│   ├── store/                   # Zustand stores (useAuthStore, useLeaveStore)
-│   └── types/                   # TypeScript interfaces & database schemas
-├── supabase/
-│   ├── migrations/              # Skema awal + security hardening
-│   ├── tests/                   # Shim Supabase + uji RLS
-│   └── seed.sql                 # Data contoh (dev/staging)
-├── scripts/                     # test-rls.sh, seed-auth-users.mjs
-└── package.json
+src/app/
+  register/  menunggu/            registrasi & halaman tunggu ACC
+  jadwal/  anggota/  kelola/      jadwal kelas, anggota, hub menu kelola (mobile)
+  admin/dosen/  whatsapp/         dosen & link pribadi, pusat WhatsApp (status, statistik, template, antrean)
+  superadmin/                     ACC kelas, ganti KM, hari libur
+  settings/keamanan/              2FA (TOTP)
+  dosen/[token]/ (+ calendar.ics) portal dosen tanpa login
+  kelas/[token]/ (+ calendar.ics) papan jadwal publik kelas
+  approval/  leave/new/  settings/password/  login/  api/auth/callback/
+src/lib/  permissions, routes, nav, ics, reminderTemplate, nextReminder, publicPortal, data/supabaseRepository
+supabase/migrations/              skema (20260928_multi_class_platform.sql = platform multi-kelas)
+worker/                           mesin WhatsApp (Go)
+scripts/                          test-rls.sh, e2e-api.py, seed-auth-users.mjs
 ```
 
 ---
 
-## ⚡ Memulai Pengembangan Lokal
+## ⚡ Pengembangan lokal
 
-### 1. Prasyarat
-- Node.js 20+ (CI memakai 22)
-- (Opsional) PostgreSQL 16 client untuk `npm run test:rls`
-
-### 2. Instalasi & Menjalankan
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+cp .env.example .env.local   # isi URL & publishable key Supabase
+npm run dev                  # http://localhost:3000
 ```
-Tanpa file `.env.local`, aplikasi berjalan dalam **mode demo** (data contoh di browser).
 
-### 3. Mode Live (Supabase)
-1. Salin `.env.example` → `.env.local`, isi `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, dan `SUPABASE_SECRET_KEY`.
-2. Jalankan migrasi berurutan di Supabase SQL Editor / CLI:
-   `supabase/migrations/20260921_initial_schema.sql` lalu `20260927_security_hardening.sql`.
-3. Buat akun login NIM: `node --env-file=.env.local scripts/seed-auth-users.mjs [roster.csv]`.
-   Password awal = NIM dan wajib diganti saat login pertama (ditegakkan `src/proxy.ts`). Karena NIM mudah ditebak,
-   buat akun per batch sesaat sebelum dipakai dan minta mahasiswa segera masuk & mengganti password.
-4. (Dev/staging saja) jalankan `supabase/seed.sql` untuk data contoh.
-5. Aktifkan provider Google di Supabase Auth dan tambahkan `https://<domain>/api/auth/callback` ke Redirect URLs.
+Aplikasi butuh Supabase (tidak ada lagi mode demo). Paling mudah memakai Supabase server lewat SSH tunnel
+(`ssh -L 8000:127.0.0.1:8000 …` lalu `NEXT_PUBLIC_SUPABASE_URL=http://localhost:8000`) atau Supabase CLI lokal.
+Migrasi dijalankan berurutan: `20260921_initial_schema.sql` → `20260927_security_hardening.sql` → `20260928_multi_class_platform.sql` → `20260929_km_handover.sql` → `20260930_sipendosa_parity.sql`.
+Data contoh (staging saja): isi juga `SUPABASE_SECRET_KEY` di `.env.local`, jalankan `node --env-file=.env.local scripts/seed-auth-users.mjs` (tanpa `CLASS_ID` = kelas demo, dibuat otomatis), lalu `supabase/seed.sql`.
+Roster sungguhan: `CLASS_ID=<uuid kelas aktif> node --env-file=.env.local scripts/seed-auth-users.mjs roster.csv`, dengan CSV
+ber-header `id,nim,full_name,role` (tanpa tanda kutip/koma di dalam nilai; `id` boleh kosong; `role` = `mahasiswa` | `sipen` | `km`), mis.:
+```csv
+id,nim,full_name,role
+,2611102441001,Rian Pratama,mahasiswa
+,2611102441002,Sarah Amalia,sipen
+```
 
-### 4. Kualitas & Pengujian
+### Kualitas & pengujian
 ```bash
-npm run lint
-npm run typecheck
-npm test             # unit test (Vitest)
-npm run test:rls     # uji RLS di PostgreSQL (butuh PGHOST/PGUSER)
-# E2E mode demo (Playwright): build dulu, jalankan server, tunggu siap, lalu uji
-npx playwright install chromium
-npm run build
-PORT=3100 npm run start & SERVER_PID=$!
-E2E_BASE_URL=http://localhost:3100 npm run test:e2e   # menunggu server siap (maks. 120 dtk)
-kill $SERVER_PID
-npm run build
+npm run lint && npm run typecheck && npm test && npm run build
+npm run test:rls        # butuh PGHOST/PGUSER (PostgreSQL biasa)
+npm run test:worker     # go vet + go test (worker/)
+npm run test:e2e-api    # di server: registrasi → ACC → jadwal → portal → worker WA (akun uji dibersihkan)
 ```
 
 ---
 
-## 👥 Pengujian Akun Demo
+## 🖥️ Produksi (VPS)
 
-Untuk kemudahan pengujian tanpa konfigurasi OAuth, aplikasi dilengkapi dengan akun demo bawaan:
-1. **Rian Pratama (Mahasiswa):** `rian.pratama@umkt.ac.id` (NIM: `2311102441101`)
-2. **Sarah Amalia (Sipen):** `sarah.amalia@umkt.ac.id` (NIM: `2311102441102`)
-3. **Budi Santoso (KM):** `budi.santoso@umkt.ac.id` (NIM: `2311102441103`)
+| Bagian | Lokasi |
+| :--- | :--- |
+| Aplikasi | `/project/sipper-ti` → PM2 `sipper` (`/project/ecosystem.config.js`, cluster 4) |
+| Supabase | `/project/sipperti-supabase` (docker compose `sipperti`, database `sipperti`; port hanya `127.0.0.1`) |
+| Worker | `/opt/sipper-worker/sipper-worker`, service `sipper-worker`, env `/etc/sipper-worker.env` (role DB `sipper_worker`, BYPASSRLS, skema `whatsmeow`) |
+| Nginx | `/etc/nginx/sites-available/platform` (app / api / studio) |
 
-Pada **mode demo**, gunakan tombol **"Akses Cepat Profil Demo"** di halaman login atau menu profil di header untuk berpindah akun. Login NIM memakai NIM sebagai password awal dan akan meminta penggantian password. Fitur pengalih profil otomatis nonaktif pada mode live.
+Deploy ulang aplikasi: `rsync` kode → `npm ci && npm run build` → `pm2 reload sipper`.
+Deploy ulang worker: `cd worker && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o sipper-worker .` → salin ke `/opt/sipper-worker/` → `sudo systemctl restart sipper-worker`.
+Role DB worker (`sipper_worker`) memakai BYPASSRLS, tetapi BYPASSRLS tidak memberi hak tabel. Grant yang dibutuhkan:
+`SELECT` pada `classes`, `lecturers`, `profiles`, `holidays`; `SELECT, UPDATE` pada `courses`, `wa_sessions`; `SELECT, INSERT, UPDATE` pada `wa_messages`;
+`SELECT, INSERT, UPDATE, DELETE` pada `wa_groups`; `USAGE` pada `wa_messages_id_seq`.
+Vercel dinonaktifkan untuk repo ini (`vercel.json` → `git.deploymentEnabled: false`).
+
+**Superadmin pertama** (sekali saja, setelah mendaftar lewat `/register` dan mengajukan kelas):
+```sql
+UPDATE classes  SET status = 'active', approved_at = now() WHERE created_by = (SELECT id FROM profiles WHERE nim = '<NIM>');
+UPDATE profiles SET is_admin = true, status = 'active', role = 'km' WHERE nim = '<NIM>';
+```
 
 ---
 
 ## 📄 Lisensi
-Dikembangkan untuk keperluan akademik Kelas Internasional Program Studi Teknik Informatika, Universitas Muhammadiyah Kalimantan Timur.
+Dikembangkan untuk keperluan akademik Program Studi Teknik Informatika, Universitas Muhammadiyah Kalimantan Timur.

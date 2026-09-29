@@ -23,24 +23,27 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      - name: Build (mode demo)
-        run: npm run build
-      - name: E2E mode demo (Playwright)
-        timeout-minutes: 10
-        run: |
-          npx playwright install --with-deps chromium
-          PORT=3100 npm run start > /tmp/next.log 2>&1 &
-          SERVER_PID=$!
-          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
-          # Skrip E2E menunggu server siap sendiri (maks. 120 dtk)
-          E2E_BASE_URL=http://localhost:3100 npm run test:e2e || { cat /tmp/next.log; exit 1; }
-      - name: Build (mode live)
-        # Memastikan jalur live (proxy, callback, RPC dosen) ikut dikompilasi & diprerender.
+      - name: Build
         # Nilai placeholder; tidak ada koneksi ke Supabase saat build.
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
         run: npm run build
+
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: worker/go.mod
+          cache-dependency-path: worker/go.sum
+      - run: go vet ./...
+      - run: go test -race ./...
 
   database:
     runs-on: ubuntu-latest

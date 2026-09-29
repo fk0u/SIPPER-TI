@@ -10,13 +10,16 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:rls": "bash scripts/test-rls.sh",
-    "test:e2e": "node e2e/demo.e2e.mjs"
+    "test:worker": "cd worker && go vet ./... && go test -race ./...",
+    "test:e2e-api": "python3 scripts/e2e-api.py"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "@types/qrcode": "^1.5.6",
     "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.2",
     "lucide-react": "^1.47.0",
     "next": "16.3.5",
     "qrcode": "^1.5.4",
@@ -32,9 +35,11 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
-    "playwright": "^1.56.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.7"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

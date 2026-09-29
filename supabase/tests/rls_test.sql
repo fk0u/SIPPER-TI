@@ -446,10 +446,15 @@ SELECT pg_temp.expect_rows('2FA: sesi password saja tidak melihat izin (alasan m
 SELECT pg_temp.expect_error('2FA: sesi password saja tidak bisa mengunggah lampiran',
     $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('permit-proofs', 'a0000000-0000-0000-0000-000000000001/x.jpg')$q$,
     'row-level security');
+SELECT pg_temp.expect_rows('2FA: sesi password saja tidak membaca lampirannya',
+    $q$SELECT 1 FROM storage.objects WHERE name = 'a0000000-0000-0000-0000-000000000001/f.jpg'$q$, 0);
 SELECT pg_temp.expect_rows('2FA: profil sendiri tetap terbaca untuk layar kode', $q$SELECT 1 FROM profiles WHERE id = auth.uid()$q$, 1);
 SELECT set_config('request.jwt.claims',
     json_build_object('sub', 'a0000000-0000-0000-0000-000000000001', 'role', 'authenticated', 'aal', 'aal2')::text, false);
 SELECT pg_temp.expect_rows('2FA: sesi aal2 melihat izinnya lagi', $q$SELECT 1 FROM leave_requests$q$, 1);
+SELECT pg_temp.expect_rows('2FA: sesi aal2 melihat kelasnya lagi', $q$SELECT 1 FROM classes$q$, 1);
+SELECT pg_temp.expect_rows('2FA: sesi aal2 membaca lampirannya lagi',
+    $q$SELECT 1 FROM storage.objects WHERE name = 'a0000000-0000-0000-0000-000000000001/f.jpg'$q$, 1);
 RESET ROLE;
 SELECT pg_temp.act_as(NULL);
 DELETE FROM auth.mfa_factors;

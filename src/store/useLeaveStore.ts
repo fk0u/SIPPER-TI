@@ -110,8 +110,8 @@ export const useLeaveStore = create<LeaveState>()((set, get) => {
           repo.fetchLeaveRequests(),
           repo.fetchCourses(),
           repo.fetchCourseSipen(),
-          // Tanpa data libur, hari libur ikut terhitung (server tetap memvalidasi jadwal)
-          repo.fetchHolidays().then((list) => list.map((h) => h.date), () => [] as string[]),
+          // Gagal memuat libur = gagal memuat (jangan hitung hari libur sebagai kuliah)
+          repo.fetchHolidays().then((list) => list.map((h) => h.date)),
         ]);
         if (generation !== loadGeneration) return; // pengguna sudah berganti
         set({ requests, courses, courseSipen, holidays, isLoaded: true, loadError: null });

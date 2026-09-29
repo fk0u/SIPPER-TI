@@ -59,7 +59,7 @@ const fieldCls =
 export const LeaveForm: React.FC = () => {
   const router = useRouter();
   const { user, profiles } = useAuthStore();
-  const { courses, courseSipen, holidays, submitLeave } = useLeaveStore();
+  const { courses, courseSipen, holidays, submitLeave, isLoaded, loadError, load } = useLeaveStore();
 
   const canUseProxy = canUseProxyFor(user);
   const steps: StepKey[] = canUseProxy
@@ -224,6 +224,20 @@ export const LeaveForm: React.FC = () => {
 
   // Matkul pada hari izin (untuk pilihan jam cepat)
   const dayCourses = singleDay ? fullDays[0]?.courses ?? [] : [];
+
+  // Hitung hari kuliah butuh jadwal & libur yang lengkap: jangan tampilkan wizard bila gagal dimuat
+  if (!isLoaded || loadError) {
+    return (
+      <div role={loadError ? 'alert' : 'status'} className="max-w-md mx-auto p-5 rounded-2xl border border-slate-200 dark:border-white/10 text-center space-y-3 text-xs text-slate-600 dark:text-slate-400">
+        <p>{loadError ? 'Jadwal atau hari libur gagal dimuat, jadi hari izin belum bisa dihitung.' : 'Memuat jadwal & hari libur…'}</p>
+        {loadError && (
+          <button type="button" onClick={() => void load()} className="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold">
+            Coba lagi
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-5xl mx-auto">

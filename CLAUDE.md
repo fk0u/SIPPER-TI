@@ -58,7 +58,7 @@ npm run test:e2e-api  # di server produksi, terhadap Supabase & worker sungguhan
 
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+This project uses a locally generated knowledge graph at graphify-out/ (git-ignored; not in a fresh clone). Build it once with `graphify update .` (install: `uv tool install 'graphifyy[sql]'`); until it exists, skip the graph-first rules below.
 
 Rules:
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.

@@ -84,9 +84,14 @@ def signup(nim, data):
     return st, body, pw, user_id
 
 
-def login(nim, pw):
+def auth_session(nim, pw):
+    """Sesi Supabase (respons token lengkap) untuk akun uji; None bila gagal."""
     st, body = http("POST", f"{API}/auth/v1/token?grant_type=password", {"email": f"{nim}@umkt.ac.id", "password": pw})
-    return body.get("access_token") if st == 200 else None
+    return body if st == 200 else None
+
+
+def login(nim, pw):
+    return (auth_session(nim, pw) or {}).get("access_token")
 
 
 def rpc(fn, args, token):
@@ -232,10 +237,10 @@ def main():
           any(n.endswith(".xlsx") for n in names) and any(n.startswith("lampiran/") and n.endswith("surat.pdf") for n in names), names)
 
     # 5c. Reset kata sandi ke NIM (route server, sesi cookie KM)
-    km_session = http("POST", f"{API}/auth/v1/token?grant_type=password", {"email": f"{NIM_KM}@umkt.ac.id", "password": pw_a})[1]
+    km_session = auth_session(NIM_KM, pw_a)
     reset = lambda sess, uid: fetch(f"{APP}/api/members/reset-password", json.dumps({"userId": uid}).encode(), method="POST",
                                     headers={"Content-Type": "application/json", "Cookie": session_cookie(sess)})
-    b_session = http("POST", f"{API}/auth/v1/token?grant_type=password", {"email": f"{NIM_MHS}@umkt.ac.id", "password": pw_b})[1]
+    b_session = auth_session(NIM_MHS, pw_b)
     st, _, _ = reset(b_session, id_a)
     check("mahasiswa tidak bisa mereset sandi KM", st == 403, st)
     st, _, body = reset(km_session, id_b)

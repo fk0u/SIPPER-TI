@@ -144,7 +144,9 @@ export const useAuthStore = create<AuthState>()((set, get) => {
     verifyMfa: async (code: string) => {
       try {
         await repo.verifyLoginTotp(code);
-        await loadSession();
+        if (!(await loadSession()) || !get().isAuthenticated || get().mfaPending) {
+          return { success: false, error: get().error || 'Verifikasi berhasil, tetapi sesi gagal dimuat. Coba lagi.' };
+        }
         return { success: true };
       } catch (err) {
         return { success: false, error: errorMessage(err, 'Verifikasi 2FA gagal.') };

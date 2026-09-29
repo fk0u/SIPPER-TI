@@ -5,6 +5,7 @@ import { BellRing, Loader2, Plus, Save, X } from 'lucide-react';
 import * as repo from '@/lib/data/supabaseRepository';
 import { toast } from '@/store/useToastStore';
 import { DAY_NAMES_MON_FIRST, currentSemester } from '@/lib/date';
+import { windowPosition } from '@/lib/nextReminder';
 import { Card, btnGhost, btnPrimary, errorText, inputCls, labelCls } from '@/components/ui/kit';
 import type { Course, Lecturer, ProfileSummary, WaGroup } from '@/types/database';
 
@@ -230,9 +231,9 @@ export function CourseForm({
                   {groups.map((g) => <option key={g.jid} value={g.jid} label={`👥 ${g.name} (${g.participants})`} />)}
                 </datalist>
               </div>
-              {(hhmm(form.reminder_time) < hhmm(sendWindow.start) || hhmm(form.reminder_time) > hhmm(sendWindow.end)) && (
+              {form.reminder_time && windowPosition(form.reminder_time, sendWindow) && (
                 <p className="sm:col-span-6 text-[11px] text-amber-700 dark:text-amber-400">
-                  {hhmm(form.reminder_time) > hhmm(sendWindow.end)
+                  {windowPosition(form.reminder_time, sendWindow) === 'after'
                     ? `Jam kirim di luar jam operasional kelas (${hhmm(sendWindow.start)}–${hhmm(sendWindow.end)}): pengingat tidak akan terkirim. Ubah di menu WhatsApp.`
                     : `Dikirim mulai ${hhmm(sendWindow.start)} (awal jam operasional kelas).`}
                 </p>

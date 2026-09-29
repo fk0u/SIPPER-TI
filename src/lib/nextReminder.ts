@@ -15,7 +15,8 @@ export interface NextReminder {
   lectureDate: string;
 }
 
-const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+/** Menit sejak tengah malam, termasuk detik ("16:00:30" → 960.5) seperti tipe TIME di database. */
+const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) + Number(t.slice(6, 8) || 0) / 60;
 const isoOf = (witaMidnightMs: number) => new Date(witaMidnightMs).toISOString().slice(0, 10);
 
 /** Waktu kirim paling awal untuk satu mata kuliah, atau null bila tidak akan pernah terkirim. */
@@ -34,7 +35,8 @@ function nextFor(
 
   const witaNow = now.getTime() + WITA_OFFSET_MS;
   const todayMidnight = witaNow - (witaNow % DAY_MS);
-  const nowMin = Math.floor((witaNow % DAY_MS) / 60_000);
+  // Presisi detik: worker berhenti mengantrekan tepat setelah jam selesai (TIME, bukan menit)
+  const nowMin = (witaNow % DAY_MS) / 60_000;
   const todayISO = isoOf(todayMidnight);
 
   for (let d = 0; d <= 14; d++) {
@@ -45,7 +47,7 @@ function nextFor(
     if (holidays.has(lectureISO)) continue;
     if (d === 0) {
       if (c.last_reminded_on === todayISO || nowMin > windowEnd) continue; // sudah terkirim / terlewat
-      const at = Math.max(fireMin, nowMin); // sudah lewat jamnya: dikirim pada tick berikutnya
+      const at = Math.max(fireMin, Math.ceil(nowMin)); // sudah lewat jamnya: dikirim pada tick berikutnya
       return { course: c, lectureDate: lectureISO, fireAt: new Date(fireDay + at * 60_000 - WITA_OFFSET_MS) };
     }
     return { course: c, lectureDate: lectureISO, fireAt: new Date(fireDay + fireMin * 60_000 - WITA_OFFSET_MS) };
@@ -68,9 +70,12 @@ export function nextReminder(
     .sort((a, b) => a.fireAt.getTime() - b.fireAt.getTime())[0] ?? null;
 }
 
-/** Mata kuliah dengan jam pengingat di luar jam operasional (tidak akan pernah terkirim). */
-export function outsideWindow(course: Pick<Course, 'reminder_enabled' | 'reminder_time'>, window: { end: string }): boolean {
-  return course.reminder_enabled && minutes(course.reminder_time) > minutes(window.end);
+/** Jam kirim relatif terhadap jam operasional: 'after' = tidak akan pernah terkirim,
+ *  'before' = dikirim mulai awal jam operasional, null = di dalam jam operasional. */
+export function windowPosition(reminderTime: string, window: { start: string; end: string }): 'before' | 'after' | null {
+  if (minutes(reminderTime) > minutes(window.end)) return 'after';
+  if (minutes(reminderTime) < minutes(window.start)) return 'before';
+  return null;
 }
 
 export function formatCountdown(ms: number): string {

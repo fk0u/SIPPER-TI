@@ -11,6 +11,10 @@ interface QRCodeModalProps {
   url: string;
   title: string;
   courseName?: string;
+  /** Judul kecil di atas QR. */
+  heading?: string;
+  /** Petunjuk di bawah QR. */
+  hint?: string;
 }
 
 export const QRCodeModal: React.FC<QRCodeModalProps> = ({
@@ -19,6 +23,8 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   url,
   title,
   courseName,
+  heading = 'QR Code Akses Dosen',
+  hint = 'Pindai dengan kamera HP dosen untuk membuka rekap',
 }) => {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [isCopied, setIsCopied] = useState(false);
@@ -82,7 +88,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-white text-base">
-                  QR Code Akses Dosen
+                  {heading}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">
                   {title}
@@ -119,7 +125,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
               </div>
             )}
             <p className="text-[11px] font-medium text-slate-600 mt-2 font-mono text-center">
-              Pindai dengan kamera HP dosen untuk membuka rekap
+              {hint}
             </p>
           </div>
 

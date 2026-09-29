@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCountdown, nextReminder, outsideWindow } from './nextReminder';
+import { formatCountdown, nextReminder, windowPosition } from './nextReminder';
 import type { Course } from '@/types/database';
 
 const course = (over: Partial<Course> = {}): Course => ({
@@ -37,7 +37,13 @@ describe('nextReminder', () => {
   it('di luar jam operasional / tanpa tujuan: tidak pernah terkirim', () => {
     expect(nextReminder([course({ reminder_time: '18:00:00' })], [], win, wita('2026-10-04T07:00:00'))).toBeNull();
     expect(nextReminder([course({ lecturer_id: null })], [], win, wita('2026-10-04T07:00:00'))).toBeNull();
-    expect(outsideWindow(course({ reminder_time: '18:00:00' }), win)).toBe(true);
+    expect(windowPosition('18:00:00', win)).toBe('after');
+    expect(windowPosition('06:00', win)).toBe('before');
+    expect(windowPosition('09:00', win)).toBeNull();
+  });
+  it('lewat jam selesai walau masih di menit yang sama: tidak dikirim hari itu (seperti worker)', () => {
+    const r = nextReminder([course({ reminder_mode: 'H-0', day_of_week: 'Minggu' })], [], win, wita('2026-10-04T16:00:30'));
+    expect(r?.lectureDate).toBe('2026-10-11');
   });
   it('memilih yang paling awal', () => {
     const r = nextReminder(

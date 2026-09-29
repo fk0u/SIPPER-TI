@@ -32,5 +32,7 @@ describe('currentSemester', () => {
     expect(currentSemester(new Date(2026, 8, 28))).toBe('2026/2027-1');
     expect(currentSemester(new Date(2027, 0, 10))).toBe('2026/2027-1');
     expect(currentSemester(new Date(2027, 2, 1))).toBe('2026/2027-2');
+    // 1 Agustus 00:30 WITA = 31 Juli UTC: sudah semester ganjil baru
+    expect(currentSemester(new Date('2027-08-01T00:30:00+08:00'))).toBe('2027/2028-1');
   });
 });

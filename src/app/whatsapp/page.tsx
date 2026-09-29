@@ -58,7 +58,12 @@ function WhatsAppCenter() {
 
   const poll = useCallback(
     () =>
-      Promise.all([repo.fetchWaSession(), repo.fetchWaMessages(), repo.waStats()]).then(
+      Promise.all([
+        repo.fetchWaSession(),
+        repo.fetchWaMessages(),
+        // Statistik opsional: kegagalannya tidak boleh menahan status sesi
+        repo.waStats().catch(() => null),
+      ]).then(
         ([s, m, st]) => {
           setSession(s);
           setMessages(m);
@@ -234,7 +239,7 @@ function WhatsAppCenter() {
                 <p className="text-xs text-slate-600 dark:text-slate-400">
                   <strong>{upcoming.course.code}</strong> {upcoming.course.name} → {upcoming.course.lecturer?.full_name ?? upcoming.course.reminder_target ?? 'dosen'}
                   <br />
-                  Dikirim {upcoming.fireAt.toLocaleString('id-ID', { weekday: 'long', hour: '2-digit', minute: '2-digit' })} untuk kuliah {upcoming.lectureDate}
+                  Dikirim {upcoming.fireAt.toLocaleString('id-ID', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) + ' WITA'} untuk kuliah {upcoming.lectureDate}
                   {klass.reminder_dry_run && ' · mode uji: hanya dicatat'}
                 </p>
               </>
@@ -329,7 +334,7 @@ function WhatsAppCenter() {
             {groups.map((g) => (
               <li key={g.jid} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/5">
                 <span className="text-xs text-slate-900 dark:text-white truncate">{g.name} <span className="text-slate-400">· {g.participants}</span></span>
-                <button onClick={() => navigator.clipboard.writeText(g.jid).then(() => toast.success('ID grup disalin.'))} className={`${btnGhost} !px-2 !py-1`} aria-label={`Salin ID ${g.name}`}>
+                <button onClick={() => navigator.clipboard.writeText(g.jid).then(() => toast.success('ID grup disalin.'), () => toast.error('Gagal menyalin ID grup.'))} className={`${btnGhost} !px-2 !py-1`} aria-label={`Salin ID ${g.name}`}>
                   <Copy className="w-3 h-3" />
                 </button>
               </li>

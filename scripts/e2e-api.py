@@ -145,7 +145,7 @@ def main():
     check("KM lama (Sipen) dikembalikan jadi mahasiswa", st in (200, 204) and first(prof_b).get("role") == "mahasiswa", prof_b)
 
     # 4. Pengaturan SiPenDosa: jam operasional sepanjang hari + mode uji (dry run), template berversi
-    st, _ = rpc("update_reminder_settings", {"p_window_start": "00:00", "p_window_end": "23:59", "p_dry_run": True}, t_a)
+    st, _ = rpc("update_reminder_settings", {"p_window_start": "00:00", "p_window_end": "23:59:59", "p_dry_run": True}, t_a)
     check("KM atur jam operasional + mode uji", st in (200, 204))
     st, _ = rpc("set_reminder_template", {"p_template": "Yth. {{.NamaDosen}}, pengingat {{.Matkul}} ({{.Kode}}) {{.Hari}} {{.JamMulai}} - kelas {{.Kelas}}."}, t_a)
     st2, versions = http("GET", f"{API}/rest/v1/reminder_template_versions?select=id", token=t_a)
@@ -214,7 +214,7 @@ def main():
         if state == "need_qr" and first(s).get("qr_code"):
             break
         time.sleep(3)
-    check("worker menampilkan QR WhatsApp", state == "need_qr", s)
+    check("worker menampilkan QR WhatsApp (isi QR dari server WhatsApp)", state == "need_qr" and len(first(s).get("qr_code") or "") > 20, s)
     rpc("wa_request", {"p_action": "off"}, t_a)
     time.sleep(5)
     st, s = http("GET", f"{API}/rest/v1/wa_sessions?select=state", token=t_a)

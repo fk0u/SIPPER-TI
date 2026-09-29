@@ -38,7 +38,7 @@ function ShareBoard({ token, onChanged }: { token: string | null; onChanged: () 
 
   return (
     <Card className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div id="papan-jadwal" className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"><Share2 className="w-4 h-4" /> Papan Jadwal Publik</h2>
         <Badge tone={token ? 'emerald' : 'slate'}>{token ? 'Aktif' : 'Nonaktif'}</Badge>
       </div>
@@ -54,7 +54,8 @@ function ShareBoard({ token, onChanged }: { token: string | null; onChanged: () 
             <button disabled={busy} onClick={() => act('rotate', 'Link baru dibuat.')} className={btnGhost}><RefreshCw className="w-3.5 h-3.5" /> Link baru</button>
             <button disabled={busy} onClick={() => act('off', 'Papan jadwal dinonaktifkan.')} className={btnDanger}>Nonaktifkan</button>
           </div>
-          <QRCodeModal isOpen={qr} onClose={() => setQr(false)} url={url} title="Papan Jadwal Kelas" />
+          <QRCodeModal isOpen={qr} onClose={() => setQr(false)} url={url} title="Papan Jadwal Kelas"
+            heading="QR Papan Jadwal Kelas" hint="Pindai untuk membuka jadwal kuliah kelas (tanpa login)" />
         </>
       ) : (
         <button disabled={busy} onClick={() => act('on', 'Papan jadwal publik aktif.')} className={btnPrimary}><Link2 className="w-3.5 h-3.5" /> Aktifkan</button>
@@ -169,7 +170,7 @@ function Schedule() {
         }
         actions={staff && editing === null ? (
           <>
-            <button onClick={() => setSharing((v) => !v)} className={btnGhost}><Share2 className="w-3.5 h-3.5" /> Bagikan</button>
+            <button onClick={() => setSharing((v) => !v)} aria-expanded={sharing} aria-controls="papan-jadwal" className={btnGhost}><Share2 className="w-3.5 h-3.5" /> Bagikan</button>
             <button onClick={() => setEditing('new')} className={btnPrimary}><Plus className="w-3.5 h-3.5" /> Mata Kuliah</button>
           </>
         ) : undefined}

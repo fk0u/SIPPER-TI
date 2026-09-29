@@ -360,7 +360,8 @@ export async function updateLeaveStatus(
 /** true bila akun punya 2FA tetapi sesi ini belum memasukkan kode (aal1 → butuh aal2). */
 export async function mfaPending(): Promise<boolean> {
   const { data, error } = await createClient().auth.mfa.getAuthenticatorAssuranceLevel();
-  if (error || !data) return false;
+  // Gagal tertutup: tanpa tingkat keamanan sesi, jangan anggap akun tanpa 2FA
+  if (error || !data) throw new Error(error?.message ?? 'Status 2FA sesi tidak dapat dipastikan.');
   return data.nextLevel === 'aal2' && data.currentLevel !== 'aal2';
 }
 

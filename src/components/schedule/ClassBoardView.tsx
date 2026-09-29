@@ -4,7 +4,8 @@ import React from 'react';
 import { AlertTriangle, CalendarDays, CalendarOff, CalendarPlus, Clock, MapPin, Printer, User } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Badge, Card } from '@/components/ui/kit';
-import { DAY_NAMES_MON_FIRST, dayNameWITA, todayWITA } from '@/lib/date';
+import { DAY_NAMES_MON_FIRST, dayIndexID, dayNameWITA, todayWITA } from '@/lib/date';
+import type { BoardCourse } from '@/types/database';
 import type { ClassBoardResult } from '@/types/database';
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : '--:--');
@@ -39,6 +40,21 @@ export function ClassBoardView({ board, token }: { board: ClassBoardResult; toke
   const soon = new Date(Date.parse(`${todayWITA()}T00:00:00Z`) + 120 * 86_400_000).toISOString().slice(0, 10);
   const holidaysSoon = holidays.filter((h) => h.date < soon);
 
+  // Hari dicocokkan tanpa peduli huruf besar/kecil (seperti day_index() di database)
+  const dayOf = (c: BoardCourse) => (dayIndexID(c.day_of_week) < 0 ? null : DAY_NAMES_MON_FIRST[(dayIndexID(c.day_of_week) + 6) % 7]);
+  const unscheduled = courses.filter((c) => dayOf(c) === null);
+  const renderCourse = (c: BoardCourse) => (
+    <div key={c.id} className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/5 space-y-1">
+      <p className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-semibold">{c.code}</p>
+      <p className="text-xs font-semibold text-slate-900 dark:text-white">{c.name}</p>
+      <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5">
+        <p className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {hhmm(c.start_time)} – {hhmm(c.end_time)} WITA</p>
+        {c.room && <p className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> {c.room}</p>}
+        {c.lecturer_name && <p className="flex items-center gap-1.5"><User className="w-3 h-3" /> {c.lecturer_name}</p>}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
       <Card className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -68,27 +84,23 @@ export function ClassBoardView({ board, token }: { board: ClassBoardResult; toke
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {DAY_NAMES_MON_FIRST.map((day) => {
-            const list = courses.filter((c) => c.day_of_week === day);
+            const list = courses.filter((c) => dayOf(c) === day);
             if (list.length === 0) return null;
             return (
               <Card key={day} className="space-y-3">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
                   {day} {day === today && <Badge tone="blue">Hari ini</Badge>}
                 </h2>
-                {list.map((c) => (
-                  <div key={c.id} className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/5 space-y-1">
-                    <p className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-semibold">{c.code}</p>
-                    <p className="text-xs font-semibold text-slate-900 dark:text-white">{c.name}</p>
-                    <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5">
-                      <p className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {hhmm(c.start_time)} – {hhmm(c.end_time)} WITA</p>
-                      {c.room && <p className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> {c.room}</p>}
-                      {c.lecturer_name && <p className="flex items-center gap-1.5"><User className="w-3 h-3" /> {c.lecturer_name}</p>}
-                    </div>
-                  </div>
-                ))}
+                {list.map(renderCourse)}
               </Card>
             );
           })}
+          {unscheduled.length > 0 && (
+            <Card className="space-y-3">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">Belum dijadwalkan</h2>
+              {unscheduled.map(renderCourse)}
+            </Card>
+          )}
         </div>
       )}
 

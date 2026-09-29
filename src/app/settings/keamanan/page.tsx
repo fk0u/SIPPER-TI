@@ -17,14 +17,33 @@ function SecuritySettings() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
   const load = useCallback(
-    () => repo.listTotpFactors().then(setFactors, (err) => { toast.error(errorText(err)); setFactors([]); }),
+    () =>
+      repo.listTotpFactors().then(
+        (f) => {
+          setFactors(f);
+          setLoadError(null);
+        },
+        // Gagal memuat ≠ tidak ada faktor: jangan tampilkan "Tidak aktif"
+        (err) => setLoadError(errorText(err, 'Status 2FA gagal dimuat.'))
+      ),
     []
   );
   useEffect(() => {
     load();
   }, [load]);
 
+  if (loadError) {
+    return (
+      <div className="max-w-md mx-auto py-10">
+        <Card className="text-center space-y-3">
+          <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">{loadError}</p>
+          <button onClick={() => { setLoadError(null); load(); }} className={btnPrimary}>Coba lagi</button>
+        </Card>
+      </div>
+    );
+  }
   if (!factors) return <PageLoader />;
   const active = factors.find((f) => f.status === 'verified');
 
@@ -102,20 +121,20 @@ function SecuritySettings() {
             <img src={enroll.qr} alt="QR 2FA" className="w-48 h-48 mx-auto rounded-xl bg-white p-2" />
             <div className="flex gap-2">
               <input readOnly value={enroll.secret} aria-label="Kode rahasia 2FA" className={`${inputCls} font-mono text-[11px]`} />
-              <button type="button" onClick={() => navigator.clipboard.writeText(enroll.secret).then(() => toast.success('Kode rahasia disalin.'))} className={btnGhost} aria-label="Salin kode rahasia">
+              <button type="button" onClick={() => navigator.clipboard.writeText(enroll.secret).then(() => toast.success('Kode rahasia disalin.'), () => toast.error('Gagal menyalin. Salin manual dari kolom di sebelahnya.'))} className={btnGhost} aria-label="Salin kode rahasia">
                 <Copy className="w-3.5 h-3.5" />
               </button>
             </div>
             <label className="block">
               <span className={labelCls}>2. Masukkan 6 digit kode dari aplikasi</span>
-              <input className={`${inputCls} text-center tracking-[0.5em] font-mono text-base`} inputMode="numeric" autoComplete="one-time-code"
+              <input aria-label="Kode 2FA 6 digit" className={`${inputCls} text-center tracking-[0.5em] font-mono text-base`} inputMode="numeric" autoComplete="one-time-code"
                 value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" />
             </label>
             <div className="flex gap-2">
               <button disabled={busy || code.length !== 6} className={btnPrimary}>
                 {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />} Aktifkan
               </button>
-              <button type="button" onClick={() => setEnroll(null)} className={btnGhost}>Batal</button>
+              <button type="button" disabled={busy} onClick={() => setEnroll(null)} className={btnGhost}>Batal</button>
             </div>
           </form>
         ) : (

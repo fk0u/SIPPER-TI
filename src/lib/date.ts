@@ -58,8 +58,10 @@ export function todayWITA(now: Date = new Date()): string {
 
 /** Semester berjalan, mis. "2026/2027-1" (Agustus–Januari = ganjil, Februari–Juli = genap). */
 export function currentSemester(now: Date = new Date()): string {
-  const y = now.getFullYear();
-  const m = now.getMonth() + 1;
+  // Kalender kampus (WITA), tidak bergantung zona waktu server/perangkat
+  const wita = new Date(now.getTime() + 8 * 3600_000);
+  const y = wita.getUTCFullYear();
+  const m = wita.getUTCMonth() + 1;
   const start = m >= 8 ? y : y - 1;
   return `${start}/${start + 1}-${m >= 8 || m === 1 ? 1 : 2}`;
 }

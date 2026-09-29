@@ -618,6 +618,8 @@ SELECT pg_temp.expect_value('KM boleh reset anggota kelasnya',
     $q$SELECT (authorize_password_reset('a0000000-0000-0000-0000-000000000001') IS NOT NULL)::text$q$, 'true');
 SELECT pg_temp.expect_error('KM reset anggota kelas lain',
     $q$SELECT authorize_password_reset('a0000000-0000-0000-0000-000000000006')$q$, 'tidak berwenang');
+SELECT pg_temp.expect_error('KM reset superadmin sekelas',
+    $q$SELECT authorize_password_reset('a0000000-0000-0000-0000-000000000007')$q$, 'tidak berwenang');
 SELECT pg_temp.expect_error('KM reset diri sendiri',
     $q$SELECT authorize_password_reset(auth.uid())$q$, 'tidak berwenang');
 SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002');

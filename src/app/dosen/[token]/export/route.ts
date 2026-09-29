@@ -96,7 +96,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       if (!entry && zipBytes + (f.size ?? 0) <= MAX_ZIP_BYTES) {
         const { data: blob } = await admin.storage.from(ATTACHMENT_BUCKET).download(path);
         if (blob) {
-          entry = `lampiran/${l.student_nim}_${c?.code ?? 'MK'}_${zipped.size + 1}_${sanitizeFileName(f.name)}`;
+          // Seluruh nama disanitasi (kode MK / NIM bisa berisi "/" → cegah zip-slip)
+          entry = `lampiran/${sanitizeFileName(`${l.student_nim}_${c?.code ?? 'MK'}_${zipped.size + 1}_${f.name}`)}`;
           zip.file(entry, await blob.arrayBuffer());
           zipBytes += blob.size;
           zipped.set(path, entry);

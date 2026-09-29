@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
@@ -11,7 +11,6 @@ import { formatFileSize, validateAttachmentFiles } from '@/lib/attachments';
 import { canUseProxy as canUseProxyFor, isSipenOf } from '@/lib/permissions';
 import { LEAVE_TYPES, LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import { MAX_LEAVE_DAYS, affectedCourses, lectureDays, type HourRange } from '@/lib/leavePlan';
-import { fetchHolidays } from '@/lib/data/supabaseRepository';
 import {
   AlertCircle,
   ArrowLeft,
@@ -60,7 +59,7 @@ const fieldCls =
 export const LeaveForm: React.FC = () => {
   const router = useRouter();
   const { user, profiles } = useAuthStore();
-  const { courses, courseSipen, submitLeave } = useLeaveStore();
+  const { courses, courseSipen, holidays, submitLeave } = useLeaveStore();
 
   const canUseProxy = canUseProxyFor(user);
   const steps: StepKey[] = canUseProxy
@@ -77,7 +76,6 @@ export const LeaveForm: React.FC = () => {
   const today = todayLocalISO();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
-  const [holidays, setHolidays] = useState<string[]>([]);
   // 3. Jam & matkul
   const [partial, setPartial] = useState(false);
   const [hourStart, setHourStart] = useState('');
@@ -94,11 +92,6 @@ export const LeaveForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  useEffect(() => {
-    fetchHolidays()
-      .then((list) => setHolidays(list.map((h) => h.date)))
-      .catch(() => {}); // tanpa data libur, hari libur ikut terhitung (server tetap memvalidasi jadwal)
-  }, []);
 
   // Mewakili: KM semua matkul, Sipen hanya matkul yang dikelolanya
   const availableStudents = profiles.filter((p) => p.id !== user?.id && p.status === 'active');
@@ -121,6 +114,9 @@ export const LeaveForm: React.FC = () => {
     ...affected.filter((a) => !excluded.has(a.course.id)).map((a) => a.course.id),
     ...unscheduled.filter((c) => unscheduledPicked.has(c.id)).map((c) => c.id),
   ];
+  const selectedDays = new Set(
+    affected.filter((a) => !excluded.has(a.course.id)).flatMap((a) => a.dates)
+  ).size;
   const totalMeetings = affected
     .filter((a) => !excluded.has(a.course.id))
     .reduce((n, a) => n + a.dates.length, 0);
@@ -622,7 +618,7 @@ export const LeaveForm: React.FC = () => {
                   ['Diajukan', isProxy ? `Mewakili, oleh ${user?.full_name}` : 'Diri sendiri'],
                   ['Tanggal', singleDay ? fmtDay(startDate) : `${fmtDay(startDate)} s/d ${fmtDay(endDate)}`],
                   ['Waktu', hours ? `${hours.start}–${hours.end} WITA` : 'Sehari penuh'],
-                  ['Hari kuliah', `${days.length} hari · ${totalMeetings} pertemuan`],
+                  ['Hari kuliah', `${selectedDays} hari · ${totalMeetings} pertemuan`],
                   ['Kategori', `${LEAVE_TYPE_META[leaveType].emoji} ${LEAVE_TYPE_META[leaveType].label}`],
                 ].map(([k, v]) => (
                   <div key={k} className="p-3 rounded-xl bg-slate-100/70 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5">

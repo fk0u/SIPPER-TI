@@ -8,7 +8,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // (authorize_password_reset: KM kelas tsb / superadmin); anggota wajib menggantinya saat login.
 export async function POST(request: Request) {
   // JSON wajib: form lintas situs tidak bisa mengirim content-type ini tanpa preflight CORS
-  if (!request.headers.get('content-type')?.includes('application/json')) {
+  const mediaType = request.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
+  if (mediaType !== 'application/json') {
     return NextResponse.json({ error: 'Format permintaan tidak valid.' }, { status: 415 });
   }
   const body = (await request.json().catch(() => null)) as { userId?: unknown } | null;

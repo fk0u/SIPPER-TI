@@ -12,7 +12,7 @@ export async function GET(
 ) {
   const { token, leave, index } = await params;
   const i = Number(index);
-  if (!UUID_RE.test(leave) || !Number.isInteger(i) || i < 0 || i > 50) {
+  if (!UUID_RE.test(leave) || !Number.isInteger(i) || i < 0) {
     return new Response('Lampiran tidak ditemukan.', { status: 404 });
   }
   try {

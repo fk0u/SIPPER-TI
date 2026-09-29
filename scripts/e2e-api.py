@@ -180,7 +180,9 @@ def main():
     # 4b. Dosen + jadwal hari ini dengan pengingat H-0 jam 00:00 (langsung jatuh tempo)
     st, lec_id = rpc("save_lecturer", {"p_id": None, "p_name": LECTURER, "p_phone": f"0899{RUN:08d}", "p_email": None}, t_a)
     check("KM menambah dosen", st == 200 and isinstance(lec_id, str), lec_id)
-    today = DAYS[datetime.datetime.now(ZoneInfo("Asia/Makassar")).weekday()]
+    # Satu tanggal WITA untuk hari matkul & tanggal izin (run yang melewati tengah malam tetap konsisten)
+    today_date = datetime.datetime.now(ZoneInfo("Asia/Makassar")).date()
+    today = DAYS[today_date.weekday()]
     st, course = http("POST", f"{API}/rest/v1/courses", {
         "class_id": cls["id"], "code": "E2E-1", "name": "Uji Pengingat", "day_of_week": today,
         "start_time": "23:00", "end_time": "23:50", "room": "Lab E2E", "lecturer_id": lec_id,
@@ -205,7 +207,7 @@ def main():
     check("portal token salah tetap 200 dengan pesan", st == 200)
 
     # 5b. Izin per jam (batch) + lampiran → portal dosen detail, lampiran, export Excel/ZIP
-    today_iso = datetime.datetime.now(ZoneInfo("Asia/Makassar")).date().isoformat()
+    today_iso = today_date.isoformat()
     course_id = first(course).get("id")
     pdf = b"%PDF-1.4\n% E2E lampiran\n"
     path = f"{id_b}/{RUN}-surat.pdf"

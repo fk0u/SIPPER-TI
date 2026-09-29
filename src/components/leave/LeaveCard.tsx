@@ -37,7 +37,7 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
   onToggleSelect,
 }) => {
   const { user } = useAuthStore();
-  const { approveLeave, rejectLeave, courseSipen } = useLeaveStore();
+  const { approveLeave, rejectLeave, courseSipen, holidays } = useLeaveStore();
 
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -50,7 +50,7 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
   const diffDays = diffDaysInclusive(request.start_date, request.end_date);
   // Pertemuan matkul ini yang terkena izin (matkul tanpa jadwal: pakai jumlah hari kalender)
   const meetings = request.course?.day_of_week
-    ? lectureDays([request.course], [], request.start_date, request.end_date).length
+    ? lectureDays([request.course], holidays, request.start_date, request.end_date).length
     : null;
   const partialHours = request.start_time && request.end_time
     ? `${request.start_time.slice(0, 5)}–${request.end_time.slice(0, 5)} WITA`

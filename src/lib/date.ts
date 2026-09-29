@@ -56,6 +56,11 @@ export function todayWITA(now: Date = new Date()): string {
   return new Date(now.getTime() + 8 * 3600_000).toISOString().slice(0, 10);
 }
 
+/** Jam sekarang menurut WITA, HH:MM. */
+export function nowTimeWITA(now: Date = new Date()): string {
+  return new Date(now.getTime() + 8 * 3600_000).toISOString().slice(11, 16);
+}
+
 /** Semester berjalan, mis. "2026/2027-1" (Agustus–Januari = ganjil, Februari–Juli = genap). */
 export function currentSemester(now: Date = new Date()): string {
   // Kalender kampus (WITA), tidak bergantung zona waktu server/perangkat

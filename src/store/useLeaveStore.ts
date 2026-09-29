@@ -34,6 +34,8 @@ interface LeaveState {
   requests: LeaveRequestWithRelations[];
   courses: Course[];
   courseSipen: CourseSipen[];
+  /** Tanggal libur (YYYY-MM-DD) — hari kuliah yang libur tidak dihitung. */
+  holidays: string[];
   isLoaded: boolean;
   loadError: string | null;
 
@@ -95,21 +97,24 @@ export const useLeaveStore = create<LeaveState>()((set, get) => {
     requests: [],
     courses: [],
     courseSipen: [],
+    holidays: [],
     isLoaded: false,
     loadError: null,
 
     load: async () => {
       // Kosongkan data pengguna sebelumnya agar tidak tampil saat berganti akun / gagal muat.
-      set({ requests: [], courses: [], courseSipen: [], isLoaded: false, loadError: null });
+      set({ requests: [], courses: [], courseSipen: [], holidays: [], isLoaded: false, loadError: null });
       const generation = ++loadGeneration;
       try {
-        const [requests, courses, courseSipen] = await Promise.all([
+        const [requests, courses, courseSipen, holidays] = await Promise.all([
           repo.fetchLeaveRequests(),
           repo.fetchCourses(),
           repo.fetchCourseSipen(),
+          // Tanpa data libur, hari libur ikut terhitung (server tetap memvalidasi jadwal)
+          repo.fetchHolidays().then((list) => list.map((h) => h.date), () => [] as string[]),
         ]);
         if (generation !== loadGeneration) return; // pengguna sudah berganti
-        set({ requests, courses, courseSipen, isLoaded: true, loadError: null });
+        set({ requests, courses, courseSipen, holidays, isLoaded: true, loadError: null });
       } catch (err) {
         if (generation !== loadGeneration) return;
         // Detail error (PostgREST/RLS) hanya ke console, bukan ke UI
@@ -120,7 +125,7 @@ export const useLeaveStore = create<LeaveState>()((set, get) => {
 
     clear: () => {
       ++loadGeneration;
-      set({ requests: [], courses: [], courseSipen: [], isLoaded: false, loadError: null });
+      set({ requests: [], courses: [], courseSipen: [], holidays: [], isLoaded: false, loadError: null });
     },
 
     submitLeave: async (payload) => {

@@ -23,7 +23,7 @@ import {
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { CountUp } from '@/components/reactbits/CountUp';
 import { Badge, Card } from '@/components/ui/kit';
-import { DAY_NAMES_MON_FIRST, dayNameWITA, todayWITA } from '@/lib/date';
+import { DAY_NAMES_MON_FIRST, dayNameWITA, nowTimeWITA, todayWITA } from '@/lib/date';
 import { LEAVE_TYPES, LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import { lectureDays } from '@/lib/leavePlan';
 import { filterPortalLeaves, filterQuery, leaveMeetings, leaveTimeLabel, type PortalFilter } from '@/lib/lecturerPortal';
@@ -158,7 +158,11 @@ export function LecturerPortalView({ portal, token }: { portal: LecturerPortalRe
 
   // Pertemuan berikutnya per matkul + siapa yang sudah izin di tanggal itu
   const nextMeeting = (c: PortalCourse) => {
-    const date = lectureDays([c as unknown as Course], holidayDates, today, addDays(today, 27))[0]?.date;
+    // Pertemuan hari ini yang sudah selesai (jam WITA) bukan lagi "berikutnya"
+    const nowWITA = nowTimeWITA();
+    const date = lectureDays([c as unknown as Course], holidayDates, today, addDays(today, 27))
+      .map((d) => d.date)
+      .find((d) => d !== today || !c.end_time || c.end_time.slice(0, 5) > nowWITA);
     if (!date) return null;
     const absent = leaves.filter((l) => l.course_id === c.id && l.start_date <= date && l.end_date >= date);
     return { date, absent };
@@ -354,7 +358,13 @@ export function LecturerPortalView({ portal, token }: { portal: LecturerPortalRe
                     const meta = LEAVE_TYPE_META[l.leave_type];
                     return (
                       <tr key={l.id} onClick={() => setOpenId(l.id)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.03]">
-                        <td className="px-2 py-2 text-slate-900 dark:text-white">{l.student_name}<span className="block font-mono text-[10px] text-slate-500">{l.student_nim}</span></td>
+                        <td className="px-2 py-2 text-slate-900 dark:text-white">
+                          {/* Tombol agar detail bisa dibuka dengan keyboard; klik baris tetap berfungsi */}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); setOpenId(l.id); }} className="text-left hover:underline focus-visible:underline">
+                            {l.student_name}
+                          </button>
+                          <span className="block font-mono text-[10px] text-slate-500">{l.student_nim}</span>
+                        </td>
                         <td className="px-2 py-2 text-slate-600 dark:text-slate-400">{c ? `${c.code} · ${c.class_name}` : '-'}</td>
                         <td className="px-2 py-2"><span className={`text-[10px] px-1.5 py-0.5 rounded-md border ${meta.badge}`}>{meta.emoji} {meta.short}</span></td>
                         <td className="px-2 py-2 font-mono text-[11px] text-slate-600 dark:text-slate-400">

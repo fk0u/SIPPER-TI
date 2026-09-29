@@ -81,7 +81,7 @@
 | :--- | :--- | :--- | :--- |
 | **GST-01** | Token valid dibuka di perangkat lain | Rekap tampil tanpa login (server-rendered via RPC). | RLS (RPC), Pending Live |
 | **GST-02** | Token tidak dikenal / kedaluwarsa / dicabut | Pesan sesuai status. | Unit, RLS, Pending Live |
-| **GST-03** | Privasi rekap | Hanya izin `approved`; tanpa alasan & lampiran. | Unit, RLS, Pending Live |
+| **GST-03** | Privasi rekap | Hanya izin `approved` (dengan alasan, jam & metadata lampiran: nama/tipe/ukuran); tanpa email, nomor, atau path storage lampiran (lihat DSN-03). | Unit, RLS, E2E API |
 | **GST-04** | Mahasiswa/Sipen membuat token | Hanya KM yang bisa membuat & mencabut (termasuk token buatan KM lain). | Unit, RLS |
 | **GST-05** | Cetak rekap | Tampilan cetak via `window.print()`. | Manual |
 

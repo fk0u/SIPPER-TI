@@ -131,7 +131,7 @@ func main() {
 		case <-scheduleTick.C:
 			schedule()
 		case <-groupTick.C:
-			sessions.SyncAllGroups(ctx)
+			sessions.SyncAllGroups()
 		}
 	}
 }

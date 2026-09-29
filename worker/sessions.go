@@ -35,9 +35,14 @@ type Sessions struct {
 	container *sqlstore.Container
 	mu        sync.Mutex
 	clients   map[string]*classClient
-	// QR kedaluwarsa untuk permintaan ini: tunggu pengguna menekan "Sambungkan" lagi
+	// QR kedaluwarsa / perangkat dikeluarkan untuk permintaan ini: tunggu pengguna menekan "Sambungkan" lagi
 	expired map[string]time.Time
+	// Sinkron grup yang sedang berjalan per kelas (cegah tumpang tindih saat reconnect beruntun)
+	syncing sync.Map
 }
+
+// Batas waktu satu sinkron grup WhatsApp.
+const groupSyncTimeout = 30 * time.Second
 
 func NewSessions(db *sql.DB, container *sqlstore.Container) *Sessions {
 	return &Sessions{db: db, container: container, clients: map[string]*classClient{}, expired: map[string]time.Time{}}
@@ -266,12 +271,17 @@ func (s *Sessions) handleEvent(c *classClient, evt any) {
 		s.setStateFor(c, "state = 'connected', device_jid = $2, push_name = $3, qr_code = NULL, pair_code = NULL, last_error = NULL",
 			c.cli.Store.ID.String(), c.cli.Store.PushName)
 		slog.Info("WhatsApp terhubung", "class", c.classID, "jid", c.cli.Store.ID.String())
-		go s.syncGroups(context.Background(), c.classID, c.cli)
+		go s.syncGroups(c.classID, c.cli)
 	case *events.Disconnected:
 		s.setStateFor(c, "state = 'disconnected'")
 	case *events.LoggedOut:
-		// Dikeluarkan dari HP: whatsmeow sudah menghapus perangkat dari store
-		s.setStateFor(c, "state = 'logged_out', device_jid = NULL, qr_code = NULL, pair_code = NULL")
+		// Dikeluarkan dari HP: whatsmeow sudah menghapus perangkat dari store. Jangan tautkan ulang
+		// otomatis (QR / kode pairing ke nomor lama): tunggu pengguna menekan "Sambungkan" lagi.
+		s.setStateFor(c, "state = 'logged_out', device_jid = NULL, qr_code = NULL, pair_code = NULL, last_error = $2",
+			"Perangkat dikeluarkan dari HP. Tekan Sambungkan untuk menautkan lagi.")
+		s.mu.Lock()
+		s.expired[c.classID] = c.requestedAt
+		s.mu.Unlock()
 		go s.teardownIfCurrent(c) // jangan Disconnect dari dalam handler event whatsmeow
 	}
 }
@@ -308,7 +318,15 @@ func (s *Sessions) logout(ctx context.Context, r sessionRow) {
 }
 
 // syncGroups menyimpan grup yang diikuti nomor kelas ke wa_groups (pemilih tujuan pengingat).
-func (s *Sessions) syncGroups(ctx context.Context, classID string, cli *whatsmeow.Client) {
+// Paling banyak satu sinkron per kelas sekaligus, dengan batas waktu.
+func (s *Sessions) syncGroups(classID string, cli *whatsmeow.Client) {
+	if _, running := s.syncing.LoadOrStore(classID, true); running {
+		return
+	}
+	defer s.syncing.Delete(classID)
+	ctx, cancel := context.WithTimeout(context.Background(), groupSyncTimeout)
+	defer cancel()
+
 	groups, err := cli.GetJoinedGroups(ctx)
 	if err != nil {
 		slog.Warn("gagal mengambil grup WhatsApp", "class", classID, "err", err)
@@ -316,10 +334,12 @@ func (s *Sessions) syncGroups(ctx context.Context, classID string, cli *whatsmeo
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		slog.Error("gagal memulai transaksi sinkron grup", "class", classID, "err", err)
 		return
 	}
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(ctx, "DELETE FROM wa_groups WHERE class_id = $1", classID); err != nil {
+		slog.Error("gagal menghapus grup lama", "class", classID, "err", err)
 		return
 	}
 	for _, g := range groups {
@@ -336,12 +356,15 @@ func (s *Sessions) syncGroups(ctx context.Context, classID string, cli *whatsmeo
 			return
 		}
 	}
-	if err := tx.Commit(); err == nil {
-		slog.Info("grup WhatsApp disinkron", "class", classID, "jumlah", len(groups))
+	if err := tx.Commit(); err != nil {
+		slog.Error("gagal menyimpan sinkron grup", "class", classID, "err", err)
+		return
 	}
+	slog.Info("grup WhatsApp disinkron", "class", classID, "jumlah", len(groups))
 }
 
-func (s *Sessions) SyncAllGroups(ctx context.Context) {
+// SyncAllGroups memulai sinkron grup semua kelas terhubung di latar belakang (tidak menahan loop utama).
+func (s *Sessions) SyncAllGroups() {
 	s.mu.Lock()
 	var list []*classClient
 	for _, c := range s.clients {
@@ -350,7 +373,7 @@ func (s *Sessions) SyncAllGroups(ctx context.Context) {
 	s.mu.Unlock()
 	for _, c := range list {
 		if c.cli.IsConnected() && c.cli.IsLoggedIn() {
-			s.syncGroups(ctx, c.classID, c.cli)
+			go s.syncGroups(c.classID, c.cli)
 		}
 	}
 }

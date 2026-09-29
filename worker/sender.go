@@ -134,10 +134,7 @@ func (s *Sender) sendOne(ctx context.Context, classID string, cli *whatsmeow.Cli
 
 	// Mode uji: pengingat dirender & dicatat, tidak dikirim (pesan uji manual tetap dikirim)
 	if dryRun && m.courseID.Valid {
-		if _, err := s.db.ExecContext(ctx, `UPDATE wa_messages SET status = 'dry_run', sent_at = now(), last_error = NULL,
-			recipient = $2, recipient_name = $3, body = $4 WHERE id = $1`, m.id, m.recipient, m.name, m.body); err != nil {
-			slog.Error("gagal mencatat dry run", "id", m.id, "err", err)
-		}
+		s.record(ctx, m, "dry_run")
 		slog.Info("dry run: pengingat tidak dikirim", "id", m.id, "class", classID)
 		return true
 	}
@@ -147,12 +144,26 @@ func (s *Sender) sendOne(ctx context.Context, classID string, cli *whatsmeow.Cli
 		s.fail(ctx, m.id, err.Error(), m.attempts >= maxAttempts)
 		return true
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE wa_messages SET status = 'sent', sent_at = now(), last_error = NULL,
-		recipient = $2, recipient_name = $3, body = $4 WHERE id = $1`, m.id, m.recipient, m.name, m.body); err != nil {
-		slog.Error("gagal menandai terkirim", "id", m.id, "err", err)
-	}
+	s.record(ctx, m, "sent")
 	slog.Info("pesan terkirim", "id", m.id, "class", classID, "to", m.recipient.String)
 	return true
+}
+
+// record mencatat hasil akhir pesan. Pesan "sent" sudah sampai ke WhatsApp, jadi kegagalan
+// mencatat TIDAK boleh mengembalikannya ke antrean (akan terkirim ganda): coba ulang, lalu
+// tandai gagal dengan keterangan agar tidak tertinggal di "sending".
+func (s *Sender) record(ctx context.Context, m queued, status string) {
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		if _, err = s.db.ExecContext(ctx, `UPDATE wa_messages SET status = $5, sent_at = now(), last_error = NULL,
+			recipient = $2, recipient_name = $3, body = $4 WHERE id = $1`, m.id, m.recipient, m.name, m.body, status); err == nil {
+			return
+		}
+		time.Sleep(time.Duration(attempt+1) * time.Second)
+	}
+	slog.Error("gagal mencatat hasil pesan", "id", m.id, "status", status, "err", err)
+	_, _ = s.db.ExecContext(ctx, `UPDATE wa_messages SET status = 'failed',
+		last_error = 'Sudah diproses tetapi gagal dicatat; periksa WhatsApp sebelum mengirim ulang.' WHERE id = $1`, m.id)
 }
 
 func (s *Sender) fail(ctx context.Context, id int64, reason string, final bool) {

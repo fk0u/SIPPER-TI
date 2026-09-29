@@ -122,7 +122,13 @@ Aplikasi butuh Supabase (tidak ada lagi mode demo). Paling mudah memakai Supabas
 (`ssh -L 8000:127.0.0.1:8000 …` lalu `NEXT_PUBLIC_SUPABASE_URL=http://localhost:8000`) atau Supabase CLI lokal.
 Migrasi dijalankan berurutan: `20260921_initial_schema.sql` → `20260927_security_hardening.sql` → `20260928_multi_class_platform.sql` → `20260929_km_handover.sql` → `20260930_sipendosa_parity.sql`.
 Data contoh (staging saja): isi juga `SUPABASE_SECRET_KEY` di `.env.local`, jalankan `node --env-file=.env.local scripts/seed-auth-users.mjs` (tanpa `CLASS_ID` = kelas demo, dibuat otomatis), lalu `supabase/seed.sql`.
-Roster sungguhan: `CLASS_ID=<uuid kelas aktif> node --env-file=.env.local scripts/seed-auth-users.mjs roster.csv`.
+Roster sungguhan: `CLASS_ID=<uuid kelas aktif> node --env-file=.env.local scripts/seed-auth-users.mjs roster.csv`, dengan CSV
+ber-header `id,nim,full_name,role` (tanpa tanda kutip/koma di dalam nilai; `id` boleh kosong; `role` = `mahasiswa` | `sipen` | `km`), mis.:
+```csv
+id,nim,full_name,role
+,2611102441001,Rian Pratama,mahasiswa
+,2611102441002,Sarah Amalia,sipen
+```
 
 ### Kualitas & pengujian
 ```bash
@@ -145,7 +151,9 @@ npm run test:e2e-api    # di server: registrasi → ACC → jadwal → portal �
 
 Deploy ulang aplikasi: `rsync` kode → `npm ci && npm run build` → `pm2 reload sipper`.
 Deploy ulang worker: `cd worker && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o sipper-worker .` → salin ke `/opt/sipper-worker/` → `sudo systemctl restart sipper-worker`.
-Role DB worker (`sipper_worker`) butuh grant ke tabel yang ditulisnya (`wa_sessions`, `wa_messages`, `wa_groups`, `courses.last_reminded_on`).
+Role DB worker (`sipper_worker`) memakai BYPASSRLS, tetapi BYPASSRLS tidak memberi hak tabel. Grant yang dibutuhkan:
+`SELECT` pada `classes`, `lecturers`, `profiles`, `holidays`; `SELECT, UPDATE` pada `courses`, `wa_sessions`; `SELECT, INSERT, UPDATE` pada `wa_messages`;
+`SELECT, INSERT, UPDATE, DELETE` pada `wa_groups`; `USAGE` pada `wa_messages_id_seq`.
 Vercel dinonaktifkan untuk repo ini (`vercel.json` → `git.deploymentEnabled: false`).
 
 **Superadmin pertama** (sekali saja, setelah mendaftar lewat `/register` dan mengajukan kelas):

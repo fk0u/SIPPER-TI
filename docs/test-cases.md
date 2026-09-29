@@ -87,7 +87,7 @@
 
 ---
 
-## 8. Platform Multi-Kelas & SiPenDosa
+## 6. Platform Multi-Kelas & SiPenDosa
 
 | ID Uji | Skenario Pengujian | Hasil yang Diharapkan | Status |
 | :--- | :--- | :--- | :--- |
@@ -101,7 +101,7 @@
 | **DSN-01** | Portal dosen tanpa login + `.ics` | Jadwal lintas kelas, izin approved tanpa alasan; kalender WITA, dibatasi horizon libur. | RLS, Unit, E2E API |
 | **DSN-02** | Link dosen baru | Link lama langsung tidak berlaku; staf yang sudah diturunkan tidak bisa mengganti. | RLS, E2E API |
 | **JDW-01** | Papan jadwal publik kelas | Aktif/nonaktif/rotasi oleh staf; tanpa data mahasiswa. | RLS, E2E API |
-| **WA-01** | Tautkan WhatsApp kelas (QR / kode pairing) | Worker menulis QR dari server WhatsApp; putus/keluarkan merapikan status. | E2E API (QR), Pending Live (scan) |
+| **WA-01** | Tautkan WhatsApp kelas (QR / kode pairing) | Worker menulis QR dari server WhatsApp; putus/keluarkan merapikan status. | E2E API (isi QR dari server WhatsApp diperiksa), Pending Live (scan & kirim sungguhan) |
 | **WA-02** | Penjadwal H-1/H-0, jam operasional, hari libur | Diantrekan sekali per hari dalam jam operasional; libur dilewati. | Unit (hitung mundur), E2E API |
 | **WA-03** | Mode uji (dry run) | Pengingat dirender & dicatat tanpa dikirim. | E2E API |
 | **WA-04** | Template: pratinjau, validasi, riwayat versi | Template rusak / variabel tak dikenal ditolak di web & database; versi lama tersimpan. | Unit, RLS, Worker, E2E API |

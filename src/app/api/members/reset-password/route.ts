@@ -31,7 +31,13 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     // Audit & pencabutan sesi DULU: bila langkah berikutnya gagal, tidak ada reset yang tak tercatat
     // dan tidak ada sesi lama yang tertinggal. Semua langkah idempoten, aman diulang.
-    const { data: targetInfo } = await admin.from('profiles').select('class_id, full_name').eq('id', userId).single();
+    // Tanpa class_id audit tak terlihat oleh KM kelas → gagal lookup = batalkan reset
+    const { data: targetInfo, error: targetError } = await admin
+      .from('profiles')
+      .select('class_id, full_name')
+      .eq('id', userId)
+      .single();
+    if (targetError) throw targetError;
     const { data: actor } = await admin.from('profiles').select('nim').eq('id', caller?.id ?? '').maybeSingle();
     const { error: auditError } = await admin.from('audit_log').insert({
       actor: caller?.id ?? null,

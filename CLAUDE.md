@@ -64,7 +64,9 @@ npm run test:e2e-api  # di server produksi, terhadap Supabase & worker sungguhan
 - Tes RLS di server: `PGHOST=127.0.0.1 PGUSER=kou bash scripts/test-rls.sh` (password dari `~/.pgpass`).
 - App env server: `/project/sipper-ti/.env.local` (URL + publishable key + `SUPABASE_SECRET_KEY`, chmod 600).
 - Backup: systemd timer `supabase-backup` (02:30 WITA) → `/project/ops/backup-supabase.sh` → `/var/backups/supabase`
-  (pg_dump + arsip storage, retensi 14 hari). Uji pulih: `sudo /project/ops/restore-test.sh`. Jalankan backup
+  (pg_dump + arsip storage, retensi 14 hari), lalu disalin terenkripsi ke Google Drive (rclone crypt `gcrypt:db`,
+  folder `SIPPERTI-backup`, scope `drive.file`, retensi 30 hari; config `/root/.config/rclone/rclone.conf`,
+  kunci crypt di `/root/kredensial-server.txt`). Uji pulih: `sudo /project/ops/restore-test.sh`. Jalankan backup
   manual sebelum menerapkan migrasi.
 
 ## graphify

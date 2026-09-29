@@ -79,7 +79,7 @@ INSERT INTO course_sipen (user_id, course_id) VALUES
  ('a0000000-0000-0000-0000-000000000002', 'c1111111-1111-1111-1111-111111111111');
 INSERT INTO leave_requests (id, student_id, course_id, leave_type, start_date, end_date, reason, created_by) VALUES
  ('eb000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000006', 'c3333333-3333-3333-3333-333333333333',
-  'sakit', CURRENT_DATE, CURRENT_DATE, 'rahasia-medis', 'a0000000-0000-0000-0000-000000000006');
+  'sakit', CURRENT_DATE, CURRENT_DATE + 6, 'rahasia-medis', 'a0000000-0000-0000-0000-000000000006');
 
 -- ---------------------------------------------------------------------------
 -- Registrasi (trigger handle_new_user)
@@ -135,7 +135,7 @@ SELECT pg_temp.expect_rows('pending belum melihat mata kuliah', $q$SELECT 1 FROM
 SELECT pg_temp.expect_rows('pending melihat kelas pilihannya', $q$SELECT 1 FROM classes$q$, 1);
 SELECT pg_temp.expect_error('pending tidak bisa mengajukan izin',
     $q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, created_by)
-       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE, 'x', auth.uid())$q$,
+       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE + 6, 'x', auth.uid())$q$,
     'row-level security');
 SELECT pg_temp.expect_error('pending menyetujui diri sendiri',
     $q$SELECT approve_member(auth.uid())$q$, 'berwenang');
@@ -183,19 +183,19 @@ SELECT pg_temp.expect_error('mahasiswa menambah matkul',
 
 SELECT pg_temp.expect_error('mahasiswa insert izin approved',
     $q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, status, created_by)
-       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE, 'x', 'approved', auth.uid())$q$,
+       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE + 6, 'x', 'approved', auth.uid())$q$,
     'row-level security');
 SELECT pg_temp.expect_error('mahasiswa proxy untuk orang lain',
     $q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, created_by)
-       VALUES ('a0000000-0000-0000-0000-000000000004', 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE, 'x', auth.uid())$q$,
+       VALUES ('a0000000-0000-0000-0000-000000000004', 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE + 6, 'x', auth.uid())$q$,
     'row-level security');
 SELECT pg_temp.expect_error('mahasiswa ajukan izin di matkul kelas lain',
     $q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, created_by)
-       VALUES (auth.uid(), 'c3333333-3333-3333-3333-333333333333', 'sakit', CURRENT_DATE, CURRENT_DATE, 'x', auth.uid())$q$,
+       VALUES (auth.uid(), 'c3333333-3333-3333-3333-333333333333', 'sakit', CURRENT_DATE, CURRENT_DATE + 6, 'x', auth.uid())$q$,
     'row-level security');
 SELECT pg_temp.expect_rows('mahasiswa ajukan izin sendiri (pending)',
     $q$INSERT INTO leave_requests (id, student_id, course_id, leave_type, start_date, end_date, reason, created_by)
-       VALUES ('e0000000-0000-0000-0000-000000000001', auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE, 'x', auth.uid())$q$, 1);
+       VALUES ('e0000000-0000-0000-0000-000000000001', auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE + 6, 'x', auth.uid())$q$, 1);
 SELECT pg_temp.expect_rows('mahasiswa setujui izin sendiri',
     $q$UPDATE leave_requests SET status = 'approved', verified_by = auth.uid()$q$, 0);
 SELECT pg_temp.expect_rows('upload ke folder sendiri',
@@ -228,18 +228,18 @@ SELECT pg_temp.expect_rows('hapus berkas draf sendiri',
 SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002');
 SELECT pg_temp.expect_rows('sipen proxy di matkulnya',
     $q$INSERT INTO leave_requests (id, student_id, course_id, leave_type, start_date, end_date, reason, created_by)
-       VALUES ('e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000004', 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE, 'x', auth.uid())$q$, 1);
+       VALUES ('e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000004', 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE + 6, 'x', auth.uid())$q$, 1);
 SELECT pg_temp.expect_error('sipen proxy di matkul lain',
     $q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, created_by)
-       VALUES ('a0000000-0000-0000-0000-000000000004', 'c2222222-2222-2222-2222-222222222222', 'sakit', CURRENT_DATE, CURRENT_DATE, 'x', auth.uid())$q$,
+       VALUES ('a0000000-0000-0000-0000-000000000004', 'c2222222-2222-2222-2222-222222222222', 'sakit', CURRENT_DATE, CURRENT_DATE + 6, 'x', auth.uid())$q$,
     'row-level security');
 SELECT pg_temp.expect_error('sipen proxy untuk mahasiswa kelas lain',
     $q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, created_by)
-       VALUES ('a0000000-0000-0000-0000-000000000006', 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE, 'x', auth.uid())$q$,
+       VALUES ('a0000000-0000-0000-0000-000000000006', 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE, CURRENT_DATE + 6, 'x', auth.uid())$q$,
     'row-level security');
 SELECT pg_temp.expect_rows('sipen ajukan izin sendiri di matkul lain',
     $q$INSERT INTO leave_requests (id, student_id, course_id, leave_type, start_date, end_date, reason, created_by)
-       VALUES ('e0000000-0000-0000-0000-000000000003', auth.uid(), 'c2222222-2222-2222-2222-222222222222', 'izin_biasa', CURRENT_DATE, CURRENT_DATE, 'x', auth.uid())$q$, 1);
+       VALUES ('e0000000-0000-0000-0000-000000000003', auth.uid(), 'c2222222-2222-2222-2222-222222222222', 'izin_biasa', CURRENT_DATE, CURRENT_DATE + 6, 'x', auth.uid())$q$, 1);
 SELECT pg_temp.expect_error('sipen ubah alasan saat verifikasi',
     $q$UPDATE leave_requests SET status = 'approved', verified_by = auth.uid(), reason = 'hack' WHERE id = 'e0000000-0000-0000-0000-000000000001'$q$,
     'Hanya status verifikasi');
@@ -280,8 +280,8 @@ SELECT pg_temp.expect_value('tanggal pengingat = Senin berikutnya (hari ini bila
     $q$SELECT (lecture_date = today + (8 - extract(isodow FROM today)::int) % 7)::text
        FROM wa_messages, (SELECT (now() AT TIME ZONE 'Asia/Makassar')::date AS today) t
        WHERE course_id = 'c1111111-1111-1111-1111-111111111111'$q$, 'true');
-SELECT pg_temp.expect_error('pengingat untuk matkul tanpa dosen',
-    $q$SELECT queue_reminder_now('c2222222-2222-2222-2222-222222222222')$q$, 'Pilih dosen');
+SELECT pg_temp.expect_error('sipen kirim pengingat matkul bukan tugasnya',
+    $q$SELECT queue_reminder_now('c2222222-2222-2222-2222-222222222222')$q$, 'tidak berwenang');
 SELECT pg_temp.expect_error('pengingat untuk matkul kelas lain',
     $q$SELECT queue_reminder_now('c3333333-3333-3333-3333-333333333333')$q$, 'berwenang');
 SELECT pg_temp.expect_rows('sipen kirim pesan uji',
@@ -509,8 +509,8 @@ SELECT pg_temp.expect_value('portal dosen: jadwal lintas kelas',
     $q$SELECT jsonb_array_length(get_lecturer_portal(repeat('ab', 24)) -> 'courses')::text$q$, '2');
 SELECT pg_temp.expect_value('portal dosen: hanya izin approved di matkulnya',
     $q$SELECT jsonb_array_length(get_lecturer_portal(repeat('ab', 24)) -> 'leaves')::text$q$, '2');
-SELECT pg_temp.expect_value('portal dosen: tanpa alasan izin',
-    $q$SELECT (get_lecturer_portal(repeat('ab', 24))::text LIKE '%rahasia-medis%')::text$q$, 'false');
+SELECT pg_temp.expect_value('portal dosen: tanpa email, nomor, atau path lampiran',
+    $q$SELECT (get_lecturer_portal(repeat('ab', 24))::text ~ '"(email|phone|path|access_token)"')::text$q$, 'false');
 SELECT pg_temp.expect_value('portal dosen: hari libur mendatang',
     $q$SELECT jsonb_array_length(get_lecturer_portal(repeat('ab', 24)) -> 'holidays')::text$q$, '1');
 SELECT pg_temp.expect_value('portal dosen: token tidak dikenal',
@@ -548,3 +548,99 @@ SELECT pg_temp.expect_value('status akhir izin',
     'approved:true,pending:false,approved:true,approved:true');
 SELECT pg_temp.expect_value('bucket lama leave-attachments privat',
     $q$SELECT public::text FROM storage.buckets WHERE id = 'leave-attachments'$q$, 'false');
+
+-- ---------------------------------------------------------------------------
+-- Wizard izin: validasi jadwal, izin per jam, batch
+--   c1 Cloud = Senin 08:00–10:00 (kelas A); Rian mahasiswa kelas A
+-- ---------------------------------------------------------------------------
+CREATE FUNCTION pg_temp.next_dow(d int) RETURNS date LANGUAGE sql AS $$
+    SELECT CURRENT_DATE + ((d - extract(dow FROM CURRENT_DATE)::int + 7) % 7);
+$$;
+SET ROLE authenticated;
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+SELECT pg_temp.expect_error('izin di hari tanpa jadwal matkul ditolak',
+    format($q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, created_by)
+       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, 'x', auth.uid())$q$,
+       pg_temp.next_dow(2), pg_temp.next_dow(2)), 'Tidak ada jadwal');
+SELECT pg_temp.expect_error('izin per jam di luar jam kuliah ditolak',
+    format($q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, start_time, end_time, reason, created_by)
+       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, '10:00', '11:00', 'x', auth.uid())$q$,
+       pg_temp.next_dow(1), pg_temp.next_dow(1)), 'tidak beririsan');
+SELECT pg_temp.expect_error('izin per jam lintas hari ditolak',
+    format($q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, start_time, end_time, reason, created_by)
+       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, '08:00', '09:00', 'x', auth.uid())$q$,
+       pg_temp.next_dow(1), pg_temp.next_dow(1) + 7), 'leave_partial_hours');
+SELECT pg_temp.expect_rows('izin per jam (batch, 2 matkul terdampak di rentang)',
+    format($q$INSERT INTO leave_requests (id, batch_id, student_id, course_id, leave_type, start_date, end_date, start_time, end_time, reason, created_by)
+       VALUES ('e1000000-0000-0000-0000-000000000001', 'bb000000-0000-0000-0000-000000000001', auth.uid(),
+               'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, '09:00', '09:30', 'x', auth.uid())$q$,
+       pg_temp.next_dow(1), pg_temp.next_dow(1)), 1);
+RESET ROLE;
+SET ROLE authenticated;
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002');
+SELECT pg_temp.expect_error('verifikator mengubah jam izin',
+    $q$UPDATE leave_requests SET status = 'approved', verified_by = auth.uid(), start_time = '08:00'
+       WHERE id = 'e1000000-0000-0000-0000-000000000001'$q$, 'Hanya status verifikasi');
+
+-- ---------------------------------------------------------------------------
+-- Sipen per matkul: Sarah Sipen c1 saja
+-- ---------------------------------------------------------------------------
+SELECT pg_temp.expect_rows('sipen ubah matkul tugasnya',
+    $q$UPDATE courses SET room = 'R-1' WHERE id = 'c1111111-1111-1111-1111-111111111111'$q$, 1);
+SELECT pg_temp.expect_rows('sipen ubah matkul bukan tugasnya',
+    $q$UPDATE courses SET room = 'R-1' WHERE id = 'c2222222-2222-2222-2222-222222222222'$q$, 0);
+SELECT pg_temp.expect_rows('sipen hapus matkul bukan tugasnya',
+    $q$DELETE FROM courses WHERE id = 'c2222222-2222-2222-2222-222222222222'$q$, 0);
+SELECT pg_temp.expect_error('sipen pindahkan matkul ke kelas lain',
+    $q$UPDATE courses SET class_id = '0b000000-0000-0000-0000-00000000000b' WHERE id = 'c1111111-1111-1111-1111-111111111111'$q$,
+    'row-level security');
+SELECT pg_temp.expect_rows('sipen tambah matkul',
+    $q$INSERT INTO courses (id, class_id, code, name) VALUES ('c4444444-4444-4444-4444-444444444444', '0a000000-0000-0000-0000-00000000000a', 'TI-450', 'IoT')$q$, 1);
+SELECT pg_temp.expect_value('matkul buatan sipen otomatis miliknya',
+    $q$SELECT count(*)::text FROM course_sipen WHERE course_id = 'c4444444-4444-4444-4444-444444444444' AND user_id = auth.uid()$q$, '1');
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000003');
+SELECT pg_temp.expect_rows('KM ubah semua matkul kelasnya',
+    $q$UPDATE courses SET room = 'R-2' WHERE class_id = '0a000000-0000-0000-0000-00000000000a'$q$, 4);
+SELECT pg_temp.expect_error('pengingat untuk matkul tanpa dosen',
+    $q$SELECT queue_reminder_now('c2222222-2222-2222-2222-222222222222')$q$, 'Pilih dosen');
+SELECT pg_temp.expect_rows('KM hapus matkul kelasnya',
+    $q$DELETE FROM courses WHERE id = 'c4444444-4444-4444-4444-444444444444'$q$, 1);
+
+-- ---------------------------------------------------------------------------
+-- Reset kata sandi ke NIM
+-- ---------------------------------------------------------------------------
+SELECT pg_temp.expect_value('KM boleh reset anggota kelasnya',
+    $q$SELECT (authorize_password_reset('a0000000-0000-0000-0000-000000000001') IS NOT NULL)::text$q$, 'true');
+SELECT pg_temp.expect_error('KM reset anggota kelas lain',
+    $q$SELECT authorize_password_reset('a0000000-0000-0000-0000-000000000006')$q$, 'tidak berwenang');
+SELECT pg_temp.expect_error('KM reset diri sendiri',
+    $q$SELECT authorize_password_reset(auth.uid())$q$, 'tidak berwenang');
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002');
+SELECT pg_temp.expect_error('sipen reset kata sandi',
+    $q$SELECT authorize_password_reset('a0000000-0000-0000-0000-000000000001')$q$, 'tidak berwenang');
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000007');
+SELECT pg_temp.expect_value('superadmin reset lintas kelas',
+    $q$SELECT (authorize_password_reset('a0000000-0000-0000-0000-000000000006') IS NOT NULL)::text$q$, 'true');
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- Portal dosen: detail & lampiran
+-- ---------------------------------------------------------------------------
+SELECT pg_temp.act_as(NULL);
+UPDATE leave_requests SET status = 'approved', file_urls = '[{"name":"surat.pdf","path":"a0000000-0000-0000-0000-000000000001/s.pdf","type":"application/pdf","size":10}]'
+    WHERE id = 'e1000000-0000-0000-0000-000000000001';
+SET ROLE anon;
+SELECT pg_temp.expect_value('portal dosen: jam izin & lampiran tanpa path',
+    $q$SELECT l ->> 'start_time' || '|' || (l -> 'files' -> 0 ->> 'name') || '|' || (l -> 'files' -> 0 ? 'path')::text
+       FROM jsonb_array_elements(get_lecturer_portal(repeat('ab', 24)) -> 'leaves') l
+       WHERE l ->> 'id' = 'e1000000-0000-0000-0000-000000000001'$q$, '09:00:00|surat.pdf|false');
+SELECT pg_temp.expect_error('anon membaca path lampiran',
+    $q$SELECT lecturer_attachment(repeat('ab', 24), 'e1000000-0000-0000-0000-000000000001', 0)$q$, 'permission denied');
+RESET ROLE;
+SET ROLE service_role;
+SELECT pg_temp.expect_value('server membaca path lampiran dengan token benar',
+    $q$SELECT lecturer_attachment(repeat('ab', 24), 'e1000000-0000-0000-0000-000000000001', 0) ->> 'path'$q$,
+    'a0000000-0000-0000-0000-000000000001/s.pdf');
+SELECT pg_temp.expect_value('token salah tidak mendapat lampiran',
+    $q$SELECT lecturer_attachment(repeat('cd', 24), 'e1000000-0000-0000-0000-000000000001', 0)::text$q$, NULL);
+RESET ROLE;

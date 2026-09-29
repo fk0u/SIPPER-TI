@@ -25,6 +25,13 @@ preferensi: `.agents/user-preferences.md`, kesalahan yang pernah terjadi: `.agen
   jangan bergantung zona waktu server/perangkat.
 - Template pengingat: sintaks Go `text/template`. Validasi ada di tiga tempat yang harus selaras:
   `src/lib/reminderTemplate.ts`, `assert_valid_template()` (SQL), dan `worker/template.go`.
+- Izin: satu pengajuan wizard = satu baris `leave_requests` per matkul (sama `batch_id`), agar tiap Sipen
+  memverifikasi matkulnya sendiri. Hitung hari kuliah di `src/lib/leavePlan.ts`; server memvalidasi jadwal
+  (`validate_leave_schedule`) — izin per jam (`start_time/end_time`) hanya untuk izin satu hari.
+- KM mengelola semua matkul kelas; Sipen hanya matkul di `course_sipen` miliknya (matkul buatannya otomatis miliknya).
+- Service key (`SUPABASE_SECRET_KEY`, env server tanpa `NEXT_PUBLIC_`) hanya dipakai route handler
+  (`src/lib/supabase/admin.ts`) **setelah** otorisasi di database: reset sandi (`authorize_password_reset`),
+  lampiran & export portal dosen (`lecturer_attachment`, hanya `service_role`).
 - Komponen klien: jangan panggil `setState` sinkron di effect (lint React Compiler) — ambil data lalu set di `.then`.
 - Jangan commit/push tanpa izin pengguna. Pesan commit gaya conventional (`feat(app): …`, `fix(db): …`).
 
@@ -44,6 +51,10 @@ npm run test:e2e-api  # di server produksi, terhadap Supabase & worker sungguhan
 - Worker: `/opt/sipper-worker/sipper-worker`, systemd `sipper-worker`, env `/etc/sipper-worker.env`
   (role DB `sipper_worker`, BYPASSRLS, skema `whatsmeow`; tabel baru yang dibaca/ditulis worker butuh GRANT).
 - Menerapkan migrasi: `docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction < file.sql`.
+- App env server: `/project/sipper-ti/.env.local` (URL + publishable key + `SUPABASE_SECRET_KEY`, chmod 600).
+- Backup: systemd timer `supabase-backup` (02:30 WITA) → `/project/ops/backup-supabase.sh` → `/var/backups/supabase`
+  (pg_dump + arsip storage, retensi 14 hari). Uji pulih: `sudo /project/ops/restore-test.sh`. Jalankan backup
+  manual sebelum menerapkan migrasi.
 
 ## graphify
 

@@ -5,7 +5,7 @@ portal dosen → WhatsApp worker). Membuat akun uji NIM 9999…, lalu menghapusn
 Pemakaian (di server):  sudo python3 scripts/e2e-api.py
 Butuh: /project/supabase/.env (publishable key) dan akses docker compose untuk seed/cleanup.
 """
-import base64, datetime, hashlib, hmac, json, secrets, struct, subprocess, sys, time, urllib.error, urllib.request
+import base64, datetime, hashlib, hmac, io, json, secrets, struct, subprocess, sys, time, urllib.error, urllib.request, zipfile
 from zoneinfo import ZoneInfo
 
 APP = "https://app.85-211-245-134.sslip.io"
@@ -19,6 +19,7 @@ NIM_KM, NIM_ADMIN, NIM_MHS = (f"9999{RUN:08d}{i}" for i in (1, 2, 3))
 CLASS_KM, CLASS_ADMIN = f"Kelas Uji {RUN} E2E", f"Kelas Admin {RUN} E2E"
 LECTURER = f"Dr. Uji {RUN} E2E"
 created_users: list[str] = []
+uploaded_paths: list[str] = []
 
 
 class FixtureError(Exception):
@@ -90,6 +91,26 @@ def login(nim, pw):
 
 def rpc(fn, args, token):
     return http("POST", f"{API}/rest/v1/rpc/{fn}", args, token)
+
+
+def fetch(url, data=None, headers=None, method=None):
+    """Request mentah (bytes) — mengikuti redirect. Kembalikan (status, headers, body)."""
+    req = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return r.status, r.headers, r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.headers, e.read()
+
+
+def session_cookie(session):
+    """Cookie sesi @supabase/ssr (sb-<ref>-auth-token, base64url, dipecah per 3180 karakter)."""
+    name = f"sb-{API.split('//')[1].split('.')[0]}-auth-token"
+    value = "base64-" + base64.urlsafe_b64encode(json.dumps(session).encode()).decode().rstrip("=")
+    chunks = [value[i:i + 3180] for i in range(0, len(value), 3180)]
+    if len(chunks) == 1:
+        return f"{name}={value}"
+    return "; ".join(f"{name}.{i}={c}" for i, c in enumerate(chunks))
 
 
 def main():
@@ -177,6 +198,52 @@ def main():
     check("kalender .ics valid", st == 200 and "BEGIN:VEVENT" in ics and "RRULE:FREQ=WEEKLY" in ics, st)
     st, _ = http("GET", f"{APP}/dosen/{'0' * 48}", raw=True)
     check("portal token salah tetap 200 dengan pesan", st == 200)
+
+    # 5b. Izin per jam (batch) + lampiran → portal dosen detail, lampiran, export Excel/ZIP
+    today_iso = datetime.datetime.now(ZoneInfo("Asia/Makassar")).date().isoformat()
+    course_id = first(course).get("id")
+    pdf = b"%PDF-1.4\n% E2E lampiran\n"
+    path = f"{id_b}/{RUN}-surat.pdf"
+    st, _, _ = fetch(f"{API}/storage/v1/object/permit-proofs/{path}", pdf, method="POST",
+                     headers={"apikey": KEY, "Authorization": f"Bearer {t_b}", "Content-Type": "application/pdf"})
+    uploaded_paths.append(path)
+    check("mahasiswa mengunggah lampiran", st == 200, st)
+    leave = {"student_id": id_b, "course_id": course_id, "leave_type": "sakit", "start_date": today_iso,
+             "end_date": today_iso, "reason": f"Alasan E2E {RUN}", "created_by": id_b, "batch_id": None,
+             "file_urls": [{"name": "surat.pdf", "path": path, "type": "application/pdf", "size": len(pdf)}]}
+    st, body = http("POST", f"{API}/rest/v1/leave_requests", [{**leave, "start_time": "10:00", "end_time": "11:00"}], t_b)
+    check("izin per jam di luar jam kuliah ditolak", st >= 400 and "beririsan" in json.dumps(body), body)
+    st, rows = http("POST", f"{API}/rest/v1/leave_requests", [{**leave, "start_time": "23:10", "end_time": "23:30"}], t_b)
+    leave_id = first(rows).get("id")
+    check("izin per jam (23:10–23:30) tersimpan", st == 201 and first(rows).get("start_time") == "23:10:00", rows)
+    st, _ = http("PATCH", f"{API}/rest/v1/leave_requests?id=eq.{leave_id}", {"status": "approved", "verified_by": id_a}, t_a)
+    check("KM menyetujui izin", st in (200, 204))
+    st, html = http("GET", f"{APP}/dosen/{token}", raw=True)
+    check("portal dosen menampilkan alasan izin", st == 200 and f"Alasan E2E {RUN}" in html, st)
+    st, hdr, data = fetch(f"{APP}/dosen/{token}/lampiran/{leave_id}/0")
+    check("dosen membuka lampiran lewat portal", st == 200 and data == pdf, st)
+    st, _, _ = fetch(f"{APP}/dosen/{'0' * 48}/lampiran/{leave_id}/0")
+    check("lampiran dengan token salah ditolak", st == 404, st)
+    st, hdr, data = fetch(f"{APP}/dosen/{token}/export?format=xlsx")
+    check("export Excel", st == 200 and "spreadsheet" in hdr.get("Content-Type", "") and data[:2] == b"PK", st)
+    st, hdr, data = fetch(f"{APP}/dosen/{token}/export")
+    names = zipfile.ZipFile(io.BytesIO(data)).namelist() if st == 200 else []
+    check("export ZIP berisi Excel + lampiran",
+          any(n.endswith(".xlsx") for n in names) and any(n.startswith("lampiran/") and n.endswith("surat.pdf") for n in names), names)
+
+    # 5c. Reset kata sandi ke NIM (route server, sesi cookie KM)
+    km_session = http("POST", f"{API}/auth/v1/token?grant_type=password", {"email": f"{NIM_KM}@umkt.ac.id", "password": pw_a})[1]
+    reset = lambda sess, uid: fetch(f"{APP}/api/members/reset-password", json.dumps({"userId": uid}).encode(), method="POST",
+                                    headers={"Content-Type": "application/json", "Cookie": session_cookie(sess)})
+    b_session = http("POST", f"{API}/auth/v1/token?grant_type=password", {"email": f"{NIM_MHS}@umkt.ac.id", "password": pw_b})[1]
+    st, _, _ = reset(b_session, id_a)
+    check("mahasiswa tidak bisa mereset sandi KM", st == 403, st)
+    st, _, body = reset(km_session, id_b)
+    check("KM mereset sandi anggota", st == 200, body[:200])
+    check("login dengan NIM sebagai sandi", login(NIM_MHS, NIM_MHS) is not None)
+    check("anggota wajib ganti sandi", sql(f"SELECT is_password_changed FROM profiles WHERE id = '{id_b}'") == "f")
+    pw_b = NIM_MHS
+    t_b = login(NIM_MHS, pw_b)
 
     # 6. Penjadwal worker → mode uji: dirender dengan template kelas, dicatat tanpa dikirim (maks ~90 dtk)
     row = ""
@@ -270,5 +337,11 @@ finally:
             sql(stmt)
         except Exception as e:  # noqa: BLE001
             print(f"PERINGATAN pembersihan gagal: {stmt}: {e}")
+    if uploaded_paths:  # berkas storage tidak ikut terhapus bersama akun
+        svc = next(l.split("=", 1)[1].strip() for l in open("/project/supabase/.env") if l.startswith("SERVICE_ROLE_KEY="))
+        st, _, _ = fetch(f"{API}/storage/v1/object/permit-proofs", json.dumps({"prefixes": uploaded_paths}).encode(), method="DELETE",
+                         headers={"apikey": svc, "Authorization": f"Bearer {svc}", "Content-Type": "application/json"})
+        if st != 200:
+            print(f"PERINGATAN lampiran uji tidak terhapus ({st})")
     print(f"== {passed} lulus, {failed} gagal (data uji run {RUN} dibersihkan)")
     sys.exit(1 if failed else 0)

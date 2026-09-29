@@ -98,7 +98,13 @@
 | **KLS-05** | Isolasi antarkelas | KM/Sipen/mahasiswa hanya melihat data kelasnya. | RLS |
 | **KLS-06** | Serah terima KM & ganti KM oleh superadmin | Satu KM per kelas; KM lama jadi Sipen; status superadmin tidak berubah. | RLS, E2E API |
 | **KLS-07** | Penugasan Sipen per matkul | Atomik; gagal tanpa mengubah penugasan lama. | RLS |
-| **DSN-01** | Portal dosen tanpa login + `.ics` | Jadwal lintas kelas, izin approved tanpa alasan; kalender WITA, dibatasi horizon libur. | RLS, Unit, E2E API |
+| **KLS-08** | Sipen mengelola matkulnya | Sipen ubah/hapus/ingatkan hanya matkul tugasnya; matkul buatannya otomatis miliknya; KM semua matkul. | RLS |
+| **KLS-09** | Reset kata sandi ke NIM | KM kelas / superadmin saja (bukan diri sendiri); anggota wajib ganti sandi saat login. | RLS, E2E API |
+| **IZN-01** | Wizard izin: untuk siapa → tanggal → jadwal → alasan → tinjau | Mewakili hanya untuk KM/Sipen; hari tanpa kuliah & libur tidak dihitung; satu baris per matkul terdampak. | Unit, RLS |
+| **IZN-02** | Izin per jam (satu hari) | Hanya matkul yang jamnya beririsan; lintas hari / di luar jam kuliah ditolak server. | Unit, RLS, E2E API |
+| **DSN-01** | Portal dosen tanpa login + `.ics` | Jadwal lintas kelas, izin approved dengan alasan & jam; kalender WITA, dibatasi horizon libur. | RLS, Unit, E2E API |
+| **DSN-03** | Lampiran surat di portal dosen | Dibuka lewat route server (token divalidasi DB, signed URL 5 menit); path storage tidak pernah dikirim. | RLS, E2E API |
+| **DSN-04** | Export Excel / ZIP | Excel rekap + ringkasan; ZIP berisi Excel + folder lampiran dengan tautan relatif; mengikuti filter. | E2E API |
 | **DSN-02** | Link dosen baru | Link lama langsung tidak berlaku; staf yang sudah diturunkan tidak bisa mengganti. | RLS, E2E API |
 | **JDW-01** | Papan jadwal publik kelas | Aktif/nonaktif/rotasi oleh staf; tanpa data mahasiswa. | RLS, E2E API |
 | **WA-01** | Tautkan WhatsApp kelas (QR / kode pairing) | Worker menulis QR dari server WhatsApp; putus/keluarkan merapikan status. | E2E API (isi QR dari server WhatsApp diperiksa), Pending Live (scan & kirim sungguhan) |

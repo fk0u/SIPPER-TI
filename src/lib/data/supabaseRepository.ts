@@ -313,25 +313,26 @@ export async function signAttachments(files: LeaveAttachment[]): Promise<LeaveAt
 
 export interface InsertLeavePayload {
   student_id: string;
-  course_id: string;
+  course_ids: string[];
   leave_type: LeaveType;
   start_date: string;
   end_date: string;
+  start_time: string | null;
+  end_time: string | null;
   reason: string;
   file_urls: LeaveAttachment[];
   created_by: string;
 }
 
-export async function insertLeaveRequest(payload: InsertLeavePayload): Promise<LeaveRequestWithRelations> {
+/** Satu pengajuan → satu baris per matkul (batch_id sama), dalam satu insert atomik. */
+export async function insertLeaveBatch({ course_ids, ...payload }: InsertLeavePayload): Promise<LeaveRequestWithRelations[]> {
   // Simpan hanya metadata + path; signed URL dibuat saat ditampilkan.
   const file_urls = payload.file_urls.map(({ name, path, type, size }) => ({ name, path, type, size }));
+  const batch_id = crypto.randomUUID();
+  const rows = course_ids.map((course_id) => ({ ...payload, course_id, batch_id, file_urls, status: 'pending' }));
   return unwrap(
-    await createClient()
-      .from('leave_requests')
-      .insert({ ...payload, file_urls, status: 'pending' })
-      .select(LEAVE_SELECT)
-      .single()
-  ) as unknown as LeaveRequestWithRelations;
+    await createClient().from('leave_requests').insert(rows).select(LEAVE_SELECT)
+  ) as unknown as LeaveRequestWithRelations[];
 }
 
 export async function updateLeaveStatus(
@@ -352,6 +353,19 @@ export async function updateLeaveStatus(
       .eq('status', 'pending')
       .select(LEAVE_SELECT)
   ) as unknown as LeaveRequestWithRelations[];
+}
+
+/** Reset kata sandi anggota ke NIM (route server; otorisasi KM kelas / superadmin di database). */
+export async function resetMemberPassword(userId: string): Promise<void> {
+  const res = await fetch('/api/members/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? 'Gagal mereset kata sandi.');
+  }
 }
 
 // ---------------------------------------------------------------------------

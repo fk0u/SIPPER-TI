@@ -127,6 +127,11 @@ export interface LeaveRequest {
   leave_type: LeaveType;
   start_date: string;
   end_date: string;
+  /** Izin sebagian jam (hanya izin satu hari); null = sehari penuh. */
+  start_time?: string | null;
+  end_time?: string | null;
+  /** Satu pengajuan wizard dapat menghasilkan beberapa baris (per matkul). */
+  batch_id?: string | null;
   reason: string;
   file_urls: LeaveAttachment[];
   status: LeaveStatus;
@@ -221,17 +226,27 @@ export interface PortalCourse {
   semester: string;
   class_name: string;
   link_group: string | null;
+  /** Hanya di portal dosen: jumlah mahasiswa aktif kelas tsb. */
+  student_count?: number;
 }
 
-/** Izin approved minimum (tanpa alasan & lampiran). */
+/** Izin approved untuk portal dosen; lampiran dibuka lewat route server (tanpa path). */
 export interface PortalLeave {
   id: string;
   course_id: string;
   leave_type: LeaveType;
   start_date: string;
   end_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  reason: string;
+  batch_id: string | null;
+  created_at: string;
+  verified_at: string | null;
+  verifier_name: string | null;
   student_name: string;
   student_nim: string;
+  files: { name: string; type: string; size: number | null }[];
 }
 
 export type LecturerPortalResult =

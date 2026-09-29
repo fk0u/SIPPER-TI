@@ -15,10 +15,13 @@ import { useAuthStore } from './useAuthStore';
 
 export interface SubmitLeavePayload {
   student_id: string;
-  course_id: string;
+  course_ids: string[];
   leave_type: LeaveType;
   start_date: string;
   end_date: string;
+  /** Izin sebagian jam (HH:MM), hanya untuk izin satu hari. */
+  start_time: string | null;
+  end_time: string | null;
   reason: string;
   /** Berkas mentah dari form; diunggah di store. */
   files: File[];
@@ -36,7 +39,7 @@ interface LeaveState {
 
   load: () => Promise<void>;
   clear: () => void;
-  submitLeave: (payload: SubmitLeavePayload) => Promise<Result<LeaveRequestWithRelations>>;
+  submitLeave: (payload: SubmitLeavePayload) => Promise<Result<LeaveRequestWithRelations[]>>;
   approveLeave: (requestId: string, verifier: Profile) => Promise<Result>;
   rejectLeave: (requestId: string, reason: string, verifier: Profile) => Promise<Result>;
   batchApproveLeaves: (requestIds: string[], verifier: Profile) => Promise<{ success: boolean; count: number; error?: string }>;
@@ -128,7 +131,10 @@ export const useLeaveStore = create<LeaveState>()((set, get) => {
       if (!actor || actor.id !== payload.created_by) {
         return { success: false, error: 'Sesi tidak valid, silakan masuk kembali.' };
       }
-      if (!canSubmitFor(actor, payload.student_id, payload.course_id, get().courseSipen)) {
+      if (payload.course_ids.length === 0) {
+        return { success: false, error: 'Pilih minimal satu mata kuliah yang terdampak.' };
+      }
+      if (payload.course_ids.some((id) => !canSubmitFor(actor, payload.student_id, id, get().courseSipen))) {
         return {
           success: false,
           error: 'Anda hanya dapat mengajukan izin proxy untuk mata kuliah yang Anda kelola.',
@@ -140,18 +146,20 @@ export const useLeaveStore = create<LeaveState>()((set, get) => {
         for (const file of payload.files) {
           uploaded.push(await repo.uploadAttachment(actor.id, file));
         }
-        const record = await repo.insertLeaveRequest({
+        const records = await repo.insertLeaveBatch({
           student_id: payload.student_id,
-          course_id: payload.course_id,
+          course_ids: payload.course_ids,
           leave_type: payload.leave_type,
           start_date: payload.start_date,
           end_date: payload.end_date,
+          start_time: payload.start_time,
+          end_time: payload.end_time,
           reason: payload.reason,
           file_urls: uploaded,
           created_by: payload.created_by,
         });
-        set((state) => ({ requests: [record, ...state.requests] }));
-        return { success: true, data: record };
+        set((state) => ({ requests: [...records, ...state.requests] }));
+        return { success: true, data: records };
       } catch (err) {
         await repo.removeAttachments(uploaded.map((u) => u.path!).filter(Boolean)).catch(() => {});
         return { success: false, error: errorMessage(err, 'Terjadi kesalahan saat mengirim pengajuan.') };

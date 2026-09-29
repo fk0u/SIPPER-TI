@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Crown, Search, ShieldCheck, UserMinus, Users, X } from 'lucide-react';
+import { Check, Crown, KeyRound, Search, ShieldCheck, UserMinus, Users, X } from 'lucide-react';
 import { RequireRole } from '@/components/auth/RequireRole';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
@@ -49,6 +49,11 @@ function MembersManager() {
   const remove = (p: ProfileSummary) => {
     if (!window.confirm(`Keluarkan ${p.full_name} dari kelas? Akun & riwayat izinnya ikut terhapus.`)) return;
     void run(p.id, () => repo.removeMember(p.id), 'Anggota dikeluarkan.');
+  };
+
+  const resetPassword = (p: ProfileSummary) => {
+    if (!window.confirm(`Reset kata sandi ${p.full_name} menjadi NIM-nya (${p.nim})? Ia wajib menggantinya saat login berikutnya.`)) return;
+    void run(p.id, () => repo.resetMemberPassword(p.id), `Kata sandi ${p.full_name} direset ke NIM.`);
   };
 
   const setRole = (p: ProfileSummary, role: UserRole) => {
@@ -132,8 +137,14 @@ function MembersManager() {
                     </div>
                     <Badge tone={ROLE_TONE[p.role]}>{ROLE_LABEL[p.role]}</Badge>
                   </div>
+                  <div className="flex flex-wrap gap-2">
+                  {canManageRoles && !self && (
+                    <button disabled={busyId === p.id} onClick={() => resetPassword(p)} className={btnGhost} title="Reset kata sandi ke NIM">
+                      <KeyRound className="w-3.5 h-3.5" /> Reset Sandi
+                    </button>
+                  )}
                   {canManageRoles && !self && p.role !== 'km' && (
-                    <div className="flex flex-wrap gap-2">
+                    <>
                       {p.role === 'mahasiswa' ? (
                         <button disabled={busyId === p.id} onClick={() => setRole(p, 'sipen')} className={btnGhost}>
                           <ShieldCheck className="w-3.5 h-3.5" /> Jadikan Sipen
@@ -151,8 +162,9 @@ function MembersManager() {
                           <UserMinus className="w-3.5 h-3.5" />
                         </button>
                       )}
-                    </div>
+                    </>
                   )}
+                  </div>
                 </li>
               );
             })}

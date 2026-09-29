@@ -10,7 +10,7 @@ import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import * as repo from '@/lib/data/supabaseRepository';
 import { DAY_NAMES_MON_FIRST, dayIndexID, dayNameWITA } from '@/lib/date';
-import { isKM, isSupervisor } from '@/lib/permissions';
+import { isKM, isSipenOf, isSupervisor } from '@/lib/permissions';
 import { Badge, Card, Empty, PageHeader, btnDanger, btnGhost, btnPrimary, errorText } from '@/components/ui/kit';
 import type { Course, Lecturer } from '@/types/database';
 
@@ -96,6 +96,8 @@ function Schedule() {
   // Nama hari dicocokkan tanpa peduli huruf besar/kecil, sama dengan day_index() di database
   const dayOf = (c: Course) => (dayIndexID(c.day_of_week) < 0 ? null : DAY_NAMES_MON_FIRST[(dayIndexID(c.day_of_week) + 6) % 7]);
   const unscheduled = courses.filter((c) => dayOf(c) === null);
+  // KM mengelola semua matkul; Sipen hanya matkul yang ditugaskan kepadanya
+  const canManage = (c: Course) => km || (staff && isSipenOf(user, c.id, courseSipen));
 
   const remove = async (c: Course) => {
     if (!window.confirm(`Hapus ${c.code} — ${c.name}? Semua izin pada mata kuliah ini ikut terhapus.`)) return;
@@ -140,9 +142,14 @@ function Schedule() {
           <p className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {hhmm(c.start_time)} – {hhmm(c.end_time)} WITA</p>
           {c.room && <p className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> {c.room}</p>}
           <p className="flex items-center gap-1.5"><User className="w-3 h-3" /> {c.lecturer?.full_name ?? c.lecturer_name ?? 'Dosen belum diisi'}</p>
-          {sipenNames.length > 0 && <p className="text-[10px]">Sipen: {sipenNames.join(', ')}</p>}
+          {sipenNames.length > 0 ? (
+            <p className="text-[10px]">Sipen: {sipenNames.join(', ')}</p>
+          ) : (
+            km && <Badge tone="rose">Belum ada Sipen</Badge>
+          )}
+          {!km && staff && canManage(c) && <Badge tone="emerald">Matkul Anda</Badge>}
         </div>
-        {staff && (
+        {canManage(c) && (
           <div className="flex flex-wrap gap-1.5 pt-1">
             <button onClick={() => setEditing(c)} className={`${btnGhost} !px-2.5 !py-1.5`}><Pencil className="w-3 h-3" /> Ubah</button>
             <button disabled={busyId === c.id} onClick={() => remindNow(c)} className={`${btnGhost} !px-2.5 !py-1.5`} title="Kirim pengingat pertemuan berikutnya sekarang">

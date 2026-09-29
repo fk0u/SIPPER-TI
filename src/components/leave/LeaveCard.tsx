@@ -9,6 +9,7 @@ import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import { canVerifyRequest } from '@/lib/permissions';
 import { diffDaysInclusive, parseISODate } from '@/lib/date';
+import { lectureDays } from '@/lib/leavePlan';
 import { LEAVE_TYPE_META } from '@/lib/leaveTypes';
 import {
   Calendar,
@@ -47,6 +48,13 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
   const canApprove = canVerifyRequest(user, request, courseSipen);
 
   const diffDays = diffDaysInclusive(request.start_date, request.end_date);
+  // Pertemuan matkul ini yang terkena izin (matkul tanpa jadwal: pakai jumlah hari kalender)
+  const meetings = request.course?.day_of_week
+    ? lectureDays([request.course], [], request.start_date, request.end_date).length
+    : null;
+  const partialHours = request.start_time && request.end_time
+    ? `${request.start_time.slice(0, 5)}–${request.end_time.slice(0, 5)} WITA`
+    : null;
 
   const handleApprove = async () => {
     if (!user) return;
@@ -177,9 +185,14 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
                 <span className="text-slate-900 dark:text-white font-medium text-xs mt-0.5 block">
                   {formatDisplayDate(request.start_date)}
                   {request.start_date !== request.end_date && ` s/d ${formatDisplayDate(request.end_date)}`}
+                  {partialHours && ` · ${partialHours}`}
                 </span>
                 <span className="text-emerald-600 dark:text-emerald-400 block text-[11px] font-semibold font-mono mt-0.5">
-                  Total: {diffDays} Hari Perkuliahan
+                  {partialHours
+                    ? 'Izin sebagian jam kuliah'
+                    : meetings !== null
+                      ? `Total: ${meetings} pertemuan (${diffDays} hari kalender)`
+                      : `Total: ${diffDays} hari`}
                 </span>
               </div>
             </div>

@@ -101,10 +101,10 @@
 | **KLS-08** | Sipen mengelola matkulnya | Sipen ubah/hapus/ingatkan hanya matkul tugasnya; matkul buatannya otomatis miliknya; KM semua matkul. | RLS |
 | **KLS-09** | Reset kata sandi ke NIM | KM kelas / superadmin saja (bukan diri sendiri); anggota wajib ganti sandi saat login. | RLS, E2E API |
 | **IZN-01** | Wizard izin: untuk siapa → tanggal → jadwal → alasan → tinjau | Mewakili hanya untuk KM/Sipen; hari tanpa kuliah & libur tidak dihitung; satu baris per matkul terdampak. | Unit, RLS |
+| **IZN-02** | Izin per jam (satu hari) | Hanya matkul yang jamnya beririsan; lintas hari / di luar jam kuliah ditolak server. | Unit, RLS, E2E API |
 | **IZN-03** | Izin di hari libur / izin ganda / lewat 2×24 jam | Ditolak server (dan dicegah di wizard untuk tanggal). | RLS, E2E API |
 | **IZN-04** | Batalkan izin pending | Hanya mahasiswanya/pengajunya & selama pending; tercatat di audit. | RLS, E2E API |
 | **AUD-01** | Riwayat aktivitas | ACC/tolak/batal izin, ACC/peran/keluarkan anggota, reset sandi tercatat; hanya KM kelas & superadmin; reset sandi mencabut sesi lama. | RLS, E2E API |
-| **IZN-02** | Izin per jam (satu hari) | Hanya matkul yang jamnya beririsan; lintas hari / di luar jam kuliah ditolak server. | Unit, RLS, E2E API |
 | **KLS-10** | Atur matkul Sipen dari halaman Anggota | KM/superadmin memilih banyak matkul sekaligus; KM boleh tercatat sebagai Sipen; lintas kelas ditolak. | RLS |
 | **DSN-05** | Masa berlaku link dosen | Berlaku s/d akhir semester + 14 hari; kedaluwarsa → pesan khusus, lampiran ditolak; link baru memperpanjang; akses terakhir tercatat. | RLS |
 | **DSN-01** | Portal dosen tanpa login + `.ics` | Jadwal lintas kelas, izin approved dengan alasan & jam; kalender WITA, dibatasi horizon libur. | RLS, Unit, E2E API |

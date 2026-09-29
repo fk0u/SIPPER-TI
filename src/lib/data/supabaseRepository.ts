@@ -360,12 +360,16 @@ export async function updateLeaveStatus(
   ) as unknown as LeaveRequestWithRelations[];
 }
 
-/** Batalkan izin pending (RLS: hanya mahasiswanya / pengajunya). Mengembalikan jumlah baris terhapus. */
-export async function deleteLeaveRequest(id: string): Promise<number> {
-  const rows = unwrap(
-    await createClient().from('leave_requests').delete().eq('id', id).eq('status', 'pending').select('id')
-  ) as { id: string }[];
-  return rows.length;
+/** Batalkan izin pending lewat route server (hapus baris via RLS + bersihkan lampiran yatim). */
+export async function cancelLeaveRequest(id: string): Promise<{ ok: boolean; conflict: boolean; error?: string }> {
+  const res = await fetch('/api/leaves/cancel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  if (res.ok) return { ok: true, conflict: false };
+  const body = (await res.json().catch(() => null)) as { error?: string } | null;
+  return { ok: false, conflict: res.status === 409, error: body?.error ?? 'Gagal membatalkan pengajuan.' };
 }
 
 export async function fetchAuditLog(limit = 50): Promise<AuditEntry[]> {

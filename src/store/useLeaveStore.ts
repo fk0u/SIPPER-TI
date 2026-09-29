@@ -174,16 +174,12 @@ export const useLeaveStore = create<LeaveState>()((set, get) => {
 
     cancelLeave: async (request) => {
       try {
-        const n = await repo.deleteLeaveRequest(request.id);
-        if (n === 0) {
-          void get().load();
-          return { success: false, error: 'Pengajuan sudah diverifikasi sehingga tidak bisa dibatalkan. Data dimuat ulang.' };
+        const res = await repo.cancelLeaveRequest(request.id);
+        if (!res.ok) {
+          if (res.conflict) void get().load();
+          return { success: false, error: res.error };
         }
         set((state) => ({ requests: state.requests.filter((r) => r.id !== request.id) }));
-        // Lampiran hanya terhapus bila tidak dirujuk izin lain (policy storage); batch lain tetap aman
-        const mine = useAuthStore.getState().user?.id;
-        const paths = request.file_urls.map((f) => f.path).filter((p): p is string => Boolean(p && mine && p.startsWith(`${mine}/`)));
-        await repo.removeAttachments(paths).catch(() => {});
         return { success: true };
       } catch (err) {
         return { success: false, error: errorMessage(err, 'Gagal membatalkan pengajuan.') };

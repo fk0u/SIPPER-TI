@@ -18,6 +18,8 @@ function MembersManager() {
   const { user, klass, profiles, refresh } = useAuthStore();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // Dinaikkan setiap aksi berhasil agar Riwayat Aktivitas dimuat ulang
+  const [auditVersion, setAuditVersion] = useState(0);
   const km = isKM(user);
   // Superadmin tetap bisa mengatur peran walau sudah menyerahkan jabatan KM
   const canManageRoles = km || Boolean(user?.is_admin);
@@ -34,6 +36,7 @@ function MembersManager() {
     try {
       await action();
       await refresh();
+      setAuditVersion((v) => v + 1);
       toast.success(success);
     } catch (err) {
       toast.error(errorText(err));
@@ -174,7 +177,7 @@ function MembersManager() {
         )}
       </Card>
 
-      {canManageRoles && <AuditPanel nameById={new Map(profiles.map((p) => [p.id, p.full_name]))} />}
+      {canManageRoles && <AuditPanel version={auditVersion} nameById={new Map(profiles.map((p) => [p.id, p.full_name]))} />}
     </div>
   );
 }
@@ -265,12 +268,15 @@ const AUDIT_LABEL: Record<string, string> = {
 };
 
 /** Riwayat aksi sensitif kelas (RLS: KM kelas & superadmin). */
-function AuditPanel({ nameById }: { nameById: Map<string, string> }) {
+function AuditPanel({ nameById, version }: { nameById: Map<string, string>; version: number }) {
   const [entries, setEntries] = useState<AuditEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    repo.fetchAuditLog(50).then(setEntries, (err) => setError(errorText(err, 'Gagal memuat riwayat.')));
-  }, []);
+    repo.fetchAuditLog(50).then(
+      (list) => { setEntries(list); setError(null); },
+      (err) => setError(errorText(err, 'Gagal memuat riwayat.'))
+    );
+  }, [version]);
   const who = (id: string | null, nim?: string | null) => (id && nameById.get(id)) || nim || 'sistem';
   return (
     <Card className="space-y-3">

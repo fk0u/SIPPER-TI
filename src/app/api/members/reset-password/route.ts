@@ -29,28 +29,30 @@ export async function POST(request: Request) {
 
   try {
     const admin = createAdminClient();
-    const { error: pwError } = await admin.auth.admin.updateUserById(userId, { password: nim });
-    if (pwError) throw pwError;
-    // Trigger auth menandai "sudah diganti" saat password berubah; kembalikan agar wajib ganti
-    const { data: target, error: flagError } = await admin
-      .from('profiles')
-      .update({ is_password_changed: false })
-      .eq('id', userId)
-      .select('class_id, full_name')
-      .single();
-    if (flagError) throw flagError;
-    // Sandi baru = NIM (diketahui KM): akhiri semua sesi lama pemilik akun & catat siapa yang mereset
-    const { error: revokeError } = await admin.rpc('revoke_user_sessions', { p_user: userId });
-    if (revokeError) throw revokeError;
+    // Audit & pencabutan sesi DULU: bila langkah berikutnya gagal, tidak ada reset yang tak tercatat
+    // dan tidak ada sesi lama yang tertinggal. Semua langkah idempoten, aman diulang.
+    const { data: targetInfo } = await admin.from('profiles').select('class_id, full_name').eq('id', userId).single();
     const { data: actor } = await admin.from('profiles').select('nim').eq('id', caller?.id ?? '').maybeSingle();
     const { error: auditError } = await admin.from('audit_log').insert({
       actor: caller?.id ?? null,
       action: 'password.reset',
       target_user: userId,
-      class_id: target?.class_id ?? null,
-      details: { target_nim: nim, target_name: target?.full_name ?? null, actor_nim: actor?.nim ?? null },
+      class_id: targetInfo?.class_id ?? null,
+      details: { target_nim: nim, target_name: targetInfo?.full_name ?? null, actor_nim: actor?.nim ?? null },
     });
-    if (auditError) console.error('[reset-password] audit gagal', auditError);
+    if (auditError) throw auditError;
+    const revoke = async () => {
+      const { error: revokeError } = await admin.rpc('revoke_user_sessions', { p_user: userId });
+      if (revokeError) throw revokeError;
+    };
+    await revoke();
+    const { error: pwError } = await admin.auth.admin.updateUserById(userId, { password: nim });
+    if (pwError) throw pwError;
+    // Trigger auth menandai "sudah diganti" saat password berubah; kembalikan agar wajib ganti
+    const { error: flagError } = await admin.from('profiles').update({ is_password_changed: false }).eq('id', userId);
+    if (flagError) throw flagError;
+    // Sesi yang sempat dibuat di antara dua langkah ikut diakhiri
+    await revoke();
   } catch (err) {
     console.error('[reset-password]', err);
     return NextResponse.json({ error: 'Gagal mereset kata sandi. Coba lagi.' }, { status: 500 });

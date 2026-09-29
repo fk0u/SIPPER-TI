@@ -257,7 +257,9 @@ def main():
     check("login dengan NIM sebagai sandi", login(NIM_MHS, NIM_MHS) is not None)
     check("anggota wajib ganti sandi", sql(f"SELECT is_password_changed FROM profiles WHERE id = '{id_b}'") == "f")
     st, _ = http("POST", f"{API}/auth/v1/token?grant_type=refresh_token", {"refresh_token": b_session["refresh_token"]})
-    check("sesi lama anggota dicabut setelah reset", st >= 400, st)
+    check("sesi lama anggota dicabut setelah reset", st in (400, 401), st)
+    st, rows = http("GET", f"{API}/rest/v1/courses?select=id", token=b_session["access_token"])
+    check("JWT lama anggota langsung kehilangan akses data", st == 200 and rows == [], rows)
     st, audit = http("GET", f"{API}/rest/v1/audit_log?select=action", token=login(NIM_KM, pw_a))
     actions = {a.get("action") for a in audit} if isinstance(audit, list) else set()
     check("audit mencatat reset sandi, ACC & pembatalan izin",

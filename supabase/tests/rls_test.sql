@@ -756,3 +756,21 @@ RESET ROLE;
 UPDATE lecturers SET access_token = repeat('ac', 24) WHERE access_token = repeat('ab', 24);
 SELECT pg_temp.expect_value('link baru mendapat masa berlaku baru',
     $q$SELECT (token_expires_at > now() AND access_count = 0)::text FROM lecturers WHERE access_token = repeat('ac', 24)$q$, 'true');
+
+-- ---------------------------------------------------------------------------
+-- Sesi dicabut → akses JWT lama langsung hilang
+-- ---------------------------------------------------------------------------
+SELECT pg_temp.act_as(NULL);
+INSERT INTO auth.sessions (id, user_id) VALUES ('5e000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001');
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-0000-0000-000000000001', 'role', 'authenticated',
+    'aal', 'aal2', 'session_id', '5e000000-0000-0000-0000-000000000001')::text, false);
+SELECT pg_temp.expect_value('sesi aktif melihat matkul kelasnya',
+    $q$SELECT (count(*) > 0)::text FROM courses$q$, 'true');
+RESET ROLE;
+DELETE FROM auth.sessions WHERE id = '5e000000-0000-0000-0000-000000000001';
+SET ROLE authenticated;
+SELECT pg_temp.expect_rows('sesi yang dicabut tidak melihat matkul', $q$SELECT 1 FROM courses$q$, 0);
+SELECT pg_temp.expect_rows('sesi yang dicabut tidak melihat izinnya', $q$SELECT 1 FROM leave_requests$q$, 0);
+RESET ROLE;
+SELECT pg_temp.act_as(NULL);

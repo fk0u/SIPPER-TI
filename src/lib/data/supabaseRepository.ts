@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 import { ATTACHMENT_BUCKET, nimToEmail } from '@/lib/supabase/config';
 import { sanitizeFileName } from '@/lib/attachments';
 import type {
+  AuditEntry,
   ClassInfo,
   Course,
   CourseSipen,
@@ -353,6 +354,20 @@ export async function updateLeaveStatus(
       .eq('status', 'pending')
       .select(LEAVE_SELECT)
   ) as unknown as LeaveRequestWithRelations[];
+}
+
+/** Batalkan izin pending (RLS: hanya mahasiswanya / pengajunya). Mengembalikan jumlah baris terhapus. */
+export async function deleteLeaveRequest(id: string): Promise<number> {
+  const rows = unwrap(
+    await createClient().from('leave_requests').delete().eq('id', id).eq('status', 'pending').select('id')
+  ) as { id: string }[];
+  return rows.length;
+}
+
+export async function fetchAuditLog(limit = 50): Promise<AuditEntry[]> {
+  return unwrap(
+    await createClient().from('audit_log').select('*').order('at', { ascending: false }).limit(limit)
+  ) as AuditEntry[];
 }
 
 /** Reset kata sandi anggota ke NIM (route server; otorisasi KM kelas / superadmin di database). */

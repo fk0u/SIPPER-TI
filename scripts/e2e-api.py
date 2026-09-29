@@ -225,6 +225,13 @@ def main():
     check("izin per jam (23:10–23:30) tersimpan", st == 201 and first(rows).get("start_time") == "23:10:00", rows)
     st, _ = http("PATCH", f"{API}/rest/v1/leave_requests?id=eq.{leave_id}", {"status": "approved", "verified_by": id_a}, t_a)
     check("KM menyetujui izin", st in (200, 204))
+    st, body = http("POST", f"{API}/rest/v1/leave_requests", [{**leave, "start_time": "23:15", "end_time": "23:20"}], t_b)
+    check("izin ganda ditolak", st >= 400 and "Sudah ada izin" in json.dumps(body), body)
+    st, rows = http("POST", f"{API}/rest/v1/leave_requests", [{**leave, "start_time": "23:30", "end_time": "23:50", "file_urls": []}], t_b)
+    st, gone = http("DELETE", f"{API}/rest/v1/leave_requests?id=eq.{first(rows).get('id')}", token=t_b)
+    check("mahasiswa membatalkan izin pending", st == 200 and len(gone or []) == 1, gone)
+    st, gone = http("DELETE", f"{API}/rest/v1/leave_requests?id=eq.{leave_id}", token=t_b)
+    check("izin disetujui tidak bisa dibatalkan", st == 200 and gone == [], gone)
     st, html = http("GET", f"{APP}/dosen/{token}", raw=True)
     check("portal dosen menampilkan alasan izin", st == 200 and f"Alasan E2E {RUN}" in html, st)
     st, hdr, data = fetch(f"{APP}/dosen/{token}/lampiran/{leave_id}/0")
@@ -249,6 +256,12 @@ def main():
     check("KM mereset sandi anggota", st == 200, body[:200])
     check("login dengan NIM sebagai sandi", login(NIM_MHS, NIM_MHS) is not None)
     check("anggota wajib ganti sandi", sql(f"SELECT is_password_changed FROM profiles WHERE id = '{id_b}'") == "f")
+    st, _ = http("POST", f"{API}/auth/v1/token?grant_type=refresh_token", {"refresh_token": b_session["refresh_token"]})
+    check("sesi lama anggota dicabut setelah reset", st >= 400, st)
+    st, audit = http("GET", f"{API}/rest/v1/audit_log?select=action", token=login(NIM_KM, pw_a))
+    actions = {a.get("action") for a in audit} if isinstance(audit, list) else set()
+    check("audit mencatat reset sandi, ACC & pembatalan izin",
+          {"password.reset", "leave.approved", "leave.cancelled", "member.approved"} <= actions, actions)
     pw_b = NIM_MHS
     t_b = login(NIM_MHS, pw_b)
 
@@ -338,7 +351,8 @@ finally:
     ids = ",".join(f"'{u}'" for u in created_users)
     cleanup = [f"DELETE FROM lecturers WHERE full_name = '{LECTURER}'"]
     if ids:
-        cleanup += [f"DELETE FROM classes WHERE created_by IN ({ids})", f"DELETE FROM auth.users WHERE id IN ({ids})"]
+        cleanup += [f"DELETE FROM classes WHERE created_by IN ({ids})", f"DELETE FROM auth.users WHERE id IN ({ids})",
+                    f"DELETE FROM audit_log WHERE actor IN ({ids}) OR target_user IN ({ids})"]
     for stmt in cleanup:
         try:
             sql(stmt)

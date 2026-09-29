@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import type { Course, LeaveType } from '@/types/database';
-import { diffDaysInclusive, parseISODate, todayLocalISO, toLocalISODate } from '@/lib/date';
+import { diffDaysInclusive, parseISODate, todayLocalISO, todayWITA, toLocalISODate } from '@/lib/date';
 import { formatFileSize, validateAttachmentFiles } from '@/lib/attachments';
 import { canUseProxy as canUseProxyFor, isSipenOf } from '@/lib/permissions';
 import { LEAVE_TYPES, LEAVE_TYPE_META } from '@/lib/leaveTypes';
@@ -74,6 +74,8 @@ export const LeaveForm: React.FC = () => {
   const [studentQuery, setStudentQuery] = useState('');
   // 2. Tanggal
   const today = todayLocalISO();
+  // Selaras server: izin paling lambat 2×24 jam setelah tanggal kuliah (WITA)
+  const earliestStart = addDays(todayWITA(), -2);
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   // 3. Jam & matkul
@@ -134,6 +136,8 @@ export const LeaveForm: React.FC = () => {
       case 'when':
         if (!startDate || !endDate) return 'Isi tanggal mulai dan selesai.';
         if (endDate < startDate) return 'Tanggal selesai tidak boleh sebelum tanggal mulai.';
+        if (startDate < earliestStart)
+          return `Izin hanya bisa diajukan paling lambat 2×24 jam setelah tanggal kuliah (mulai ${fmtDay(earliestStart)}).`;
         if (rangeDays > MAX_LEAVE_DAYS) return `Rentang izin maksimal ${MAX_LEAVE_DAYS} hari.`;
         if (fullDays.length === 0 && unscheduled.length === 0)
           return 'Tidak ada jadwal kuliah pada rentang ini (akhir pekan / libur tidak dihitung).';
@@ -404,6 +408,7 @@ export const LeaveForm: React.FC = () => {
                     <input
                       type="date"
                       value={startDate}
+                      min={earliestStart}
                       onChange={(e) => {
                         setStartDate(e.target.value);
                         if (e.target.value > endDate) setEndDate(e.target.value);

@@ -28,6 +28,10 @@ preferensi: `.agents/user-preferences.md`, kesalahan yang pernah terjadi: `.agen
 - Izin: satu pengajuan wizard = satu baris `leave_requests` per matkul (sama `batch_id`), agar tiap Sipen
   memverifikasi matkulnya sendiri. Hitung hari kuliah di `src/lib/leavePlan.ts`; server memvalidasi jadwal
   (`validate_leave_schedule`) — izin per jam (`start_time/end_time`) hanya untuk izin satu hari.
+- Aturan izin di server (`validate_leave_schedule`): harus mengenai pertemuan yang bukan hari libur, tidak ganda
+  (mahasiswa+matkul+tanggal/jam beririsan, pending/approved), tanggal mulai ≥ hari ini − 2 (WITA). Izin pending
+  bisa dibatalkan (DELETE) oleh mahasiswanya/pengajunya.
+- Aksi sensitif tercatat di `audit_log` lewat trigger (izin, anggota) & route reset sandi; dibaca KM kelas/superadmin.
 - KM mengelola semua matkul kelas; Sipen hanya matkul di `course_sipen` miliknya (matkul buatannya otomatis miliknya).
 - Service key (`SUPABASE_SECRET_KEY`, env server tanpa `NEXT_PUBLIC_`) hanya dipakai route handler
   dan skrip admin tepercaya yang dijalankan manual (`scripts/seed-auth-users.mjs`). Route handler memakainya

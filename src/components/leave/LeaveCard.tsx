@@ -37,7 +37,7 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
   onToggleSelect,
 }) => {
   const { user } = useAuthStore();
-  const { approveLeave, rejectLeave, courseSipen, holidays } = useLeaveStore();
+  const { approveLeave, rejectLeave, cancelLeave, courseSipen, holidays } = useLeaveStore();
 
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -46,6 +46,9 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
 
   const isProxy = request.created_by !== request.student_id;
   const canApprove = canVerifyRequest(user, request, courseSipen);
+  // Selaras policy DELETE: izin pending boleh dibatalkan mahasiswanya atau pengajunya
+  const canCancel =
+    request.status === 'pending' && Boolean(user) && (user?.id === request.student_id || user?.id === request.created_by);
 
   const diffDays = diffDaysInclusive(request.start_date, request.end_date);
   // Pertemuan matkul ini yang terkena izin (matkul tanpa jadwal: pakai jumlah hari kalender)
@@ -66,6 +69,15 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
     } else {
       toast.error(res.error || 'Gagal menyetujui pengajuan izin.');
     }
+  };
+
+  const handleCancel = async () => {
+    if (!window.confirm(`Batalkan pengajuan izin ${request.course?.code ?? ''} ini? Pengajuan dihapus dan tidak bisa dikembalikan.`)) return;
+    setIsProcessing(true);
+    const res = await cancelLeave(request);
+    setIsProcessing(false);
+    if (res.success) toast.info('Pengajuan izin dibatalkan.');
+    else toast.error(res.error || 'Gagal membatalkan pengajuan.');
   };
 
   const handleReject = async (e: React.FormEvent) => {
@@ -258,8 +270,27 @@ export const LeaveCard: React.FC<LeaveCardProps> = ({
               <span className="text-xs text-slate-400 italic">Tidak ada lampiran berkas</span>
             )}
 
+            {canCancel && !canApprove && (
+              <button
+                onClick={handleCancel}
+                disabled={isProcessing}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:text-rose-600 transition disabled:opacity-50 flex items-center gap-1.5 active:scale-95"
+              >
+                <XCircle className="w-3.5 h-3.5" /> Batalkan
+              </button>
+            )}
+
             {canApprove && (
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {canCancel && (
+                  <button
+                    onClick={handleCancel}
+                    disabled={isProcessing}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-white/10 text-slate-600 dark:text-slate-300 transition disabled:opacity-50 active:scale-95"
+                  >
+                    Batalkan
+                  </button>
+                )}
                 <button
                   onClick={() => setIsRejectModalOpen(true)}
                   disabled={isProcessing}

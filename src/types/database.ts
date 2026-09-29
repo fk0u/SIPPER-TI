@@ -150,6 +150,26 @@ export interface LeaveRequestWithRelations extends LeaveRequest {
   verifier?: ProfileSummary | null;
 }
 
+export interface AuditEntry {
+  id: number;
+  at: string;
+  actor: string | null;
+  action: string;
+  target_user: string | null;
+  class_id: string | null;
+  details: {
+    actor_nim?: string | null;
+    target_nim?: string | null;
+    target_name?: string | null;
+    course?: string | null;
+    from?: string;
+    to?: string;
+    start_date?: string;
+    end_date?: string;
+    rejection_reason?: string | null;
+  };
+}
+
 export interface Holiday {
   date: string;
   description: string;

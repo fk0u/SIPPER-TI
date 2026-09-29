@@ -574,12 +574,12 @@ SELECT pg_temp.expect_error('izin per jam di luar jam kuliah ditolak',
 SELECT pg_temp.expect_error('izin per jam lintas hari ditolak',
     format($q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, start_time, end_time, reason, created_by)
        VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, '08:00', '09:00', 'x', auth.uid())$q$,
-       pg_temp.next_dow(1), pg_temp.next_dow(1) + 7), 'leave_partial_hours');
+       pg_temp.next_dow(1) + 7, pg_temp.next_dow(1) + 14), 'leave_partial_hours');
 SELECT pg_temp.expect_rows('izin per jam (batch, 2 matkul terdampak di rentang)',
     format($q$INSERT INTO leave_requests (id, batch_id, student_id, course_id, leave_type, start_date, end_date, start_time, end_time, reason, created_by)
        VALUES ('e1000000-0000-0000-0000-000000000001', 'bb000000-0000-0000-0000-000000000001', auth.uid(),
                'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, '09:00', '09:30', 'x', auth.uid())$q$,
-       pg_temp.next_dow(1), pg_temp.next_dow(1)), 1);
+       pg_temp.next_dow(1) + 7, pg_temp.next_dow(1) + 7), 1);
 RESET ROLE;
 SET ROLE authenticated;
 SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002');
@@ -651,3 +651,61 @@ SELECT pg_temp.expect_value('server membaca path lampiran dengan token benar',
 SELECT pg_temp.expect_value('token salah tidak mendapat lampiran',
     $q$SELECT lecturer_attachment(repeat('cd', 24), 'e1000000-0000-0000-0000-000000000001', 0)::text$q$, NULL);
 RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- Aturan izin: libur, izin ganda, batas 2×24 jam, pembatalan; audit log
+-- ---------------------------------------------------------------------------
+SELECT pg_temp.act_as(NULL);
+INSERT INTO holidays (date, description) VALUES (pg_temp.next_dow(1) + 14, 'Libur uji Senin');
+SET ROLE authenticated;
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+SELECT pg_temp.expect_error('izin hanya di hari libur ditolak',
+    format($q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, created_by)
+       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, 'x', auth.uid())$q$,
+       pg_temp.next_dow(1) + 14, pg_temp.next_dow(1) + 14), 'hari libur');
+SELECT pg_temp.expect_error('izin ganda (jam beririsan) ditolak',
+    format($q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, start_time, end_time, reason, created_by)
+       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, '09:15', '09:45', 'x', auth.uid())$q$,
+       pg_temp.next_dow(1) + 7, pg_temp.next_dow(1) + 7), 'Sudah ada izin');
+SELECT pg_temp.expect_error('izin sehari penuh menimpa izin per jam ditolak',
+    format($q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, created_by)
+       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, 'x', auth.uid())$q$,
+       pg_temp.next_dow(1) + 7, pg_temp.next_dow(1) + 7), 'Sudah ada izin');
+SELECT pg_temp.expect_rows('izin per jam lain di hari yang sama (tidak beririsan)',
+    format($q$INSERT INTO leave_requests (id, student_id, course_id, leave_type, start_date, end_date, start_time, end_time, reason, created_by)
+       VALUES ('e1000000-0000-0000-0000-000000000002', auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', %L, %L, '09:30', '10:00', 'x', auth.uid())$q$,
+       pg_temp.next_dow(1) + 7, pg_temp.next_dow(1) + 7), 1);
+SELECT pg_temp.expect_error('izin lewat batas 2×24 jam ditolak',
+    $q$INSERT INTO leave_requests (student_id, course_id, leave_type, start_date, end_date, reason, created_by)
+       VALUES (auth.uid(), 'c1111111-1111-1111-1111-111111111111', 'sakit', CURRENT_DATE - 10, CURRENT_DATE - 3, 'x', auth.uid())$q$,
+    '2×24 jam');
+SELECT pg_temp.expect_rows('mahasiswa tidak bisa membatalkan izin approved',
+    $q$DELETE FROM leave_requests WHERE id = 'e1000000-0000-0000-0000-000000000001'$q$, 0);
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000004');
+SELECT pg_temp.expect_rows('orang lain tidak bisa membatalkan izin',
+    $q$DELETE FROM leave_requests WHERE id = 'e1000000-0000-0000-0000-000000000002'$q$, 0);
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+SELECT pg_temp.expect_rows('mahasiswa membatalkan izin pending miliknya',
+    $q$DELETE FROM leave_requests WHERE id = 'e1000000-0000-0000-0000-000000000002'$q$, 1);
+SELECT pg_temp.expect_rows('mahasiswa tidak membaca audit', $q$SELECT 1 FROM audit_log$q$, 0);
+SELECT pg_temp.expect_error('klien tidak bisa menulis audit',
+    $q$INSERT INTO audit_log (action) VALUES ('palsu')$q$, 'permission denied');
+SELECT pg_temp.expect_error('klien tidak bisa mencabut sesi',
+    $q$SELECT revoke_user_sessions('a0000000-0000-0000-0000-000000000004')$q$, 'permission denied');
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000003');
+SELECT pg_temp.expect_value('KM melihat audit pembatalan izin di kelasnya',
+    $q$SELECT count(*)::text FROM audit_log WHERE action = 'leave.cancelled' AND details ->> 'target_nim' IS NOT NULL$q$, '1');
+SELECT pg_temp.expect_value('audit ACC/peran anggota tercatat',
+    $q$SELECT (count(*) > 0)::text FROM audit_log WHERE action IN ('member.approved', 'member.role', 'leave.approved')$q$, 'true');
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000005');
+SELECT pg_temp.expect_rows('KM kelas lain tidak melihat audit kelas A',
+    $q$SELECT 1 FROM audit_log WHERE class_id = '0a000000-0000-0000-0000-00000000000a'$q$, 0);
+RESET ROLE;
+SELECT pg_temp.act_as(NULL);
+INSERT INTO auth.sessions (user_id) VALUES ('a0000000-0000-0000-0000-000000000004');
+SET ROLE service_role;
+SELECT pg_temp.expect_rows('server memanggil pencabutan sesi',
+    $q$SELECT revoke_user_sessions('a0000000-0000-0000-0000-000000000004')$q$, 1);
+RESET ROLE;
+SELECT pg_temp.expect_value('sesi lama terhapus setelah reset sandi',
+    $q$SELECT count(*)::text FROM auth.sessions WHERE user_id = 'a0000000-0000-0000-0000-000000000004'$q$, '0');

@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Check, Crown, KeyRound, Search, ShieldCheck, UserMinus, Users, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Check, Crown, History, KeyRound, Search, ShieldCheck, UserMinus, Users, X } from 'lucide-react';
 import { RequireRole } from '@/components/auth/RequireRole';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
 import * as repo from '@/lib/data/supabaseRepository';
 import { isKM, isSupervisor } from '@/lib/permissions';
 import { Badge, Card, Empty, PageHeader, btnDanger, btnGhost, btnPrimary, errorText, inputCls } from '@/components/ui/kit';
-import type { ProfileSummary, UserRole } from '@/types/database';
+import type { AuditEntry, ProfileSummary, UserRole } from '@/types/database';
 
 const ROLE_TONE: Record<UserRole, 'blue' | 'emerald' | 'purple'> = { mahasiswa: 'blue', sipen: 'emerald', km: 'purple' };
 const ROLE_LABEL: Record<UserRole, string> = { mahasiswa: 'Mahasiswa', sipen: 'Sipen', km: 'KM' };
@@ -171,7 +171,62 @@ function MembersManager() {
           </ul>
         )}
       </Card>
+
+      {canManageRoles && <AuditPanel nameById={new Map(profiles.map((p) => [p.id, p.full_name]))} />}
     </div>
+  );
+}
+
+const AUDIT_LABEL: Record<string, string> = {
+  'member.approved': 'menyetujui pendaftaran',
+  'member.rejected': 'menolak pendaftaran',
+  'member.removed': 'mengeluarkan anggota',
+  'member.role': 'mengubah peran',
+  'password.reset': 'mereset kata sandi',
+  'leave.approved': 'menyetujui izin',
+  'leave.rejected': 'menolak izin',
+  'leave.cancelled': 'membatalkan izin',
+};
+
+/** Riwayat aksi sensitif kelas (RLS: KM kelas & superadmin). */
+function AuditPanel({ nameById }: { nameById: Map<string, string> }) {
+  const [entries, setEntries] = useState<AuditEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    repo.fetchAuditLog(50).then(setEntries, (err) => setError(errorText(err, 'Gagal memuat riwayat.')));
+  }, []);
+  const who = (id: string | null, nim?: string | null) => (id && nameById.get(id)) || nim || 'sistem';
+  return (
+    <Card className="space-y-3">
+      <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+        <History className="w-4 h-4" /> Riwayat Aktivitas
+      </h2>
+      {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
+      {entries === null && !error && <p className="text-xs text-slate-500">Memuat…</p>}
+      {entries?.length === 0 && <Empty>Belum ada aktivitas tercatat.</Empty>}
+      <ul className="divide-y divide-slate-200/80 dark:divide-white/5">
+        {entries?.map((e) => {
+          const d = e.details;
+          const extra = [
+            d.course,
+            d.from && d.to ? `${d.from} → ${d.to}` : null,
+            d.start_date ? `${d.start_date}${d.end_date && d.end_date !== d.start_date ? ` s/d ${d.end_date}` : ''}` : null,
+            d.rejection_reason ? `alasan: ${d.rejection_reason}` : null,
+          ].filter(Boolean).join(' · ');
+          return (
+            <li key={e.id} className="py-2 text-xs">
+              <span className="text-slate-900 dark:text-white font-medium">{who(e.actor, d.actor_nim)}</span>{' '}
+              <span className="text-slate-600 dark:text-slate-400">{AUDIT_LABEL[e.action] ?? e.action}</span>{' '}
+              <span className="text-slate-900 dark:text-white">{d.target_name ?? d.target_nim ?? ''}</span>
+              {extra && <span className="block text-[11px] text-slate-500">{extra}</span>}
+              <span className="block text-[10px] font-mono text-slate-400">
+                {new Date(e.at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', dateStyle: 'medium', timeStyle: 'short' })} WITA
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
 

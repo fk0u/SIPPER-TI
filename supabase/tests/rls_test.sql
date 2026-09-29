@@ -709,3 +709,50 @@ SELECT pg_temp.expect_rows('server memanggil pencabutan sesi',
 RESET ROLE;
 SELECT pg_temp.expect_value('sesi lama terhapus setelah reset sandi',
     $q$SELECT count(*)::text FROM auth.sessions WHERE user_id = 'a0000000-0000-0000-0000-000000000004'$q$, '0');
+
+-- ---------------------------------------------------------------------------
+-- Penugasan matkul dari halaman Anggota & masa berlaku link dosen
+-- ---------------------------------------------------------------------------
+SET ROLE authenticated;
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000003');
+SELECT pg_temp.expect_rows('KM menugaskan beberapa matkul ke Sipen sekaligus',
+    $q$SELECT set_member_courses('a0000000-0000-0000-0000-000000000002',
+        ARRAY['c1111111-1111-1111-1111-111111111111', 'c2222222-2222-2222-2222-222222222222']::uuid[])$q$, 1);
+SELECT pg_temp.expect_value('penugasan Sipen tersimpan',
+    $q$SELECT count(*)::text FROM course_sipen WHERE user_id = 'a0000000-0000-0000-0000-000000000002'$q$, '2');
+SELECT pg_temp.expect_rows('KM menjadi Sipen matkul (tetap KM)',
+    $q$SELECT set_member_courses(auth.uid(), ARRAY['c2222222-2222-2222-2222-222222222222']::uuid[])$q$, 1);
+SELECT pg_temp.expect_error('mahasiswa tidak bisa jadi Sipen matkul',
+    $q$SELECT set_member_courses('a0000000-0000-0000-0000-000000000001', ARRAY['c1111111-1111-1111-1111-111111111111']::uuid[])$q$,
+    'Hanya Sipen / KM aktif');
+SELECT pg_temp.expect_error('matkul kelas lain ditolak',
+    $q$SELECT set_member_courses('a0000000-0000-0000-0000-000000000002', ARRAY['c3333333-3333-3333-3333-333333333333']::uuid[])$q$,
+    'kelas yang sama');
+SELECT pg_temp.expect_rows('KM mengosongkan tugas Sipen lalu mengembalikan',
+    $q$SELECT set_member_courses('a0000000-0000-0000-0000-000000000002', ARRAY['c1111111-1111-1111-1111-111111111111']::uuid[])$q$, 1);
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000002');
+SELECT pg_temp.expect_error('Sipen tidak bisa menugaskan matkul',
+    $q$SELECT set_member_courses(auth.uid(), ARRAY['c2222222-2222-2222-2222-222222222222']::uuid[])$q$, 'Hanya KM');
+SELECT pg_temp.act_as('a0000000-0000-0000-0000-000000000005');
+SELECT pg_temp.expect_error('KM kelas lain tidak bisa menugaskan',
+    $q$SELECT set_member_courses('a0000000-0000-0000-0000-000000000002', '{}'::uuid[])$q$, 'Hanya KM');
+RESET ROLE;
+SELECT pg_temp.act_as(NULL);
+
+SET ROLE anon;
+SELECT get_lecturer_portal(repeat('ab', 24)) IS NOT NULL;
+RESET ROLE;
+SELECT pg_temp.expect_value('akses portal dosen tercatat',
+    $q$SELECT (last_accessed_at IS NOT NULL AND access_count >= 1 AND token_expires_at > now())::text FROM lecturers WHERE access_token = repeat('ab', 24)$q$, 'true');
+UPDATE lecturers SET token_expires_at = now() - interval '1 minute' WHERE access_token = repeat('ab', 24);
+SET ROLE anon;
+SELECT pg_temp.expect_value('link dosen kedaluwarsa ditolak',
+    $q$SELECT get_lecturer_portal(repeat('ab', 24)) ->> 'status'$q$, 'expired');
+RESET ROLE;
+SET ROLE service_role;
+SELECT pg_temp.expect_value('lampiran link kedaluwarsa ditolak',
+    $q$SELECT lecturer_attachment(repeat('ab', 24), 'e1000000-0000-0000-0000-000000000001', 0)::text$q$, NULL);
+RESET ROLE;
+UPDATE lecturers SET access_token = repeat('ac', 24) WHERE access_token = repeat('ab', 24);
+SELECT pg_temp.expect_value('link baru mendapat masa berlaku baru',
+    $q$SELECT (token_expires_at > now() AND access_count = 0)::text FROM lecturers WHERE access_token = repeat('ac', 24)$q$, 'true');

@@ -120,6 +120,7 @@ export function LecturerPortalView({ portal, token }: { portal: LecturerPortalRe
 
   if (portal.status !== 'ok') {
     const notFound = portal.status === 'not_found';
+    const expired = portal.status === 'expired';
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-4">
         <Card className="max-w-md w-full text-center space-y-4">
@@ -127,10 +128,12 @@ export function LecturerPortalView({ portal, token }: { portal: LecturerPortalRe
             <AlertTriangle className="w-7 h-7" />
           </div>
           <h1 className="text-lg font-bold text-slate-900 dark:text-white">
-            {notFound ? 'Tautan Dosen Tidak Valid' : 'Portal Sementara Tidak Dapat Dimuat'}
+            {expired ? 'Tautan Dosen Sudah Kedaluwarsa' : notFound ? 'Tautan Dosen Tidak Valid' : 'Portal Sementara Tidak Dapat Dimuat'}
           </h1>
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            {notFound
+            {expired
+              ? 'Tautan berlaku per semester. Minta tautan semester ini ke KM / Sipen kelas.'
+              : notFound
               ? 'Tautan ini tidak terdaftar atau sudah diganti. Minta tautan terbaru ke KM / Sipen kelas.'
               : 'Terjadi gangguan layanan. Tautan Anda kemungkinan masih berlaku — muat ulang beberapa saat lagi.'}
           </p>

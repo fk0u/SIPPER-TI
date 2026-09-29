@@ -222,6 +222,10 @@ export async function deleteCourse(id: string): Promise<void> {
 export const setCourseSipen = (courseId: string, userIds: string[]) =>
   rpc('set_course_sipen', { p_course: courseId, p_users: userIds });
 
+/** Atur semua matkul yang dipegang seorang Sipen/KM sekaligus (KM kelas / superadmin). */
+export const setMemberCourses = (userId: string, courseIds: string[]) =>
+  rpc('set_member_courses', { p_user: userId, p_courses: courseIds });
+
 export const getClassLecturers = () => rpc<Lecturer[]>('get_class_lecturers');
 export const saveLecturer = (id: string | null, name: string, phone: string, email: string) =>
   rpc<string>('save_lecturer', { p_id: id, p_name: name.trim(), p_phone: phone, p_email: email.trim() || null });

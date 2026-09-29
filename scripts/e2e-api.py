@@ -8,8 +8,8 @@ Butuh: /project/supabase/.env (publishable key) dan akses docker compose untuk s
 import base64, datetime, hashlib, hmac, io, json, secrets, struct, subprocess, sys, time, urllib.error, urllib.request, zipfile
 from zoneinfo import ZoneInfo
 
-APP = "https://app.85-211-245-134.sslip.io"
-API = "https://api.85-211-245-134.sslip.io"
+APP = "https://app.sipper-ics.duckdns.org"
+API = "https://api.sipper-ics.duckdns.org"
 KEY = next(l.split("=", 1)[1].strip() for l in open("/project/supabase/.env") if l.startswith("SUPABASE_PUBLISHABLE_KEY="))
 DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
 passed = failed = 0

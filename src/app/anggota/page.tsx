@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Check, Crown, History, KeyRound, Search, ShieldCheck, UserMinus, Users, X } from 'lucide-react';
+import { BookOpen, Check, Crown, History, KeyRound, Search, ShieldCheck, UserMinus, Users, X } from 'lucide-react';
 import { RequireRole } from '@/components/auth/RequireRole';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLeaveStore } from '@/store/useLeaveStore';
 import { toast } from '@/store/useToastStore';
 import * as repo from '@/lib/data/supabaseRepository';
 import { isKM, isSupervisor } from '@/lib/permissions';
@@ -165,6 +166,7 @@ function MembersManager() {
                     </>
                   )}
                   </div>
+                  {(p.role === 'sipen' || p.role === 'km') && <CourseAssigner member={p} canEdit={canManageRoles} />}
                 </li>
               );
             })}
@@ -173,6 +175,80 @@ function MembersManager() {
       </Card>
 
       {canManageRoles && <AuditPanel nameById={new Map(profiles.map((p) => [p.id, p.full_name]))} />}
+    </div>
+  );
+}
+
+/** Matkul yang dipegang seorang Sipen/KM: tampil sebagai chip; KM/superadmin bisa mengubahnya. */
+function CourseAssigner({ member, canEdit }: { member: ProfileSummary; canEdit: boolean }) {
+  const { courses, courseSipen, load } = useLeaveStore();
+  const assigned = courseSipen.filter((cs) => cs.user_id === member.id).map((cs) => cs.course_id);
+  const [editing, setEditing] = useState<Set<string> | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      await repo.setMemberCourses(member.id, [...editing]);
+      await load();
+      setEditing(null);
+      toast.success(`Matkul ${member.full_name} disimpan.`);
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="w-full pl-11 space-y-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+        {assigned.length === 0 ? (
+          <span className="text-[11px] text-slate-400">Belum memegang mata kuliah</span>
+        ) : (
+          courses
+            .filter((c) => assigned.includes(c.id))
+            .map((c) => (
+              <span key={c.id} className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px]" title={c.name}>
+                {c.code} {c.name}
+              </span>
+            ))
+        )}
+        {canEdit && editing === null && (
+          <button onClick={() => setEditing(new Set(assigned))} className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline ml-1">
+            Atur matkul
+          </button>
+        )}
+      </div>
+      {editing && (
+        <div className="p-3 rounded-xl border border-slate-200 dark:border-white/10 space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {courses.map((c) => (
+              <label key={c.id} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editing.has(c.id)}
+                  onChange={() =>
+                    setEditing((s) => {
+                      const next = new Set(s);
+                      if (next.has(c.id)) next.delete(c.id);
+                      else next.add(c.id);
+                      return next;
+                    })
+                  }
+                />
+                <span><span className="font-mono text-blue-600 dark:text-blue-400">{c.code}</span> {c.name}</span>
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setEditing(null)} className={btnGhost}>Batal</button>
+            <button disabled={saving} onClick={save} className={btnPrimary}><Check className="w-3.5 h-3.5" /> {saving ? 'Menyimpan…' : 'Simpan'}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

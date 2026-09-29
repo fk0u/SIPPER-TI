@@ -12,6 +12,9 @@ import type { Lecturer } from '@/types/database';
 
 const portalUrl = (token: string) => `${window.location.origin}/dosen/${token}`;
 
+const fmtDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', dateStyle: 'medium', timeStyle: 'short' });
+
 function LecturerManager() {
   const klass = useAuthStore((s) => s.klass);
   const [lecturers, setLecturers] = useState<Lecturer[] | null>(null);
@@ -128,6 +131,17 @@ function LecturerManager() {
                     {l.full_name} <Badge tone={l.course_count > 0 ? 'blue' : 'slate'}>{l.course_count} matkul</Badge>
                   </p>
                   <p className="text-[11px] font-mono text-slate-500">+{l.phone}{l.email ? ` · ${l.email}` : ''}</p>
+                  <p className="text-[11px] text-slate-500">
+                    {new Date(l.token_expires_at) <= new Date() ? (
+                      <Badge tone="rose">Link kedaluwarsa — buat link baru</Badge>
+                    ) : (
+                      <>Link berlaku s/d {fmtDateTime(l.token_expires_at)}</>
+                    )}
+                    {' · '}
+                    {l.last_accessed_at
+                      ? `terakhir dibuka ${fmtDateTime(l.last_accessed_at)} (${l.access_count}× kunjungan)`
+                      : 'belum pernah dibuka'}
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <button onClick={() => copy(l)} className={btnGhost} title="Salin link">

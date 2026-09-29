@@ -23,7 +23,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   const url = new URL(request.url);
   const portal = await fetchLecturerPortal(token);
   if (portal.status !== 'ok') {
-    return new Response('Portal tidak ditemukan.', { status: portal.status === 'not_found' ? 404 : 503 });
+    return new Response('Portal tidak ditemukan.', { status: portal.status === 'not_found' ? 404 : portal.status === 'expired' ? 410 : 503 });
   }
   const zipMode = url.searchParams.get('format') !== 'xlsx';
   const leaves = filterPortalLeaves(portal.leaves, parseFilterQuery(url.searchParams));

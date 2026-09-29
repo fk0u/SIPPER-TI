@@ -5,7 +5,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const { token } = await params;
   const portal = await fetchLecturerPortal(token);
   if (portal.status !== 'ok') {
-    return new Response('Kalender tidak ditemukan.', { status: portal.status === 'not_found' ? 404 : 503 });
+    return new Response('Kalender tidak ditemukan.', { status: portal.status === 'not_found' ? 404 : portal.status === 'expired' ? 410 : 503 });
   }
   return new Response(buildScheduleIcs(`Jadwal Mengajar ${portal.lecturer.full_name}`, portal.courses, portal.holidays), {
     headers: {

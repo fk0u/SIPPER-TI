@@ -108,6 +108,10 @@ export interface Lecturer {
   access_token: string;
   course_count: number;
   can_edit: boolean;
+  /** Link berlaku sampai akhir semester + 14 hari; diperpanjang saat link dibuat ulang. */
+  token_expires_at: string;
+  last_accessed_at: string | null;
+  access_count: number;
 }
 
 export interface LeaveAttachment {
@@ -270,10 +274,10 @@ export interface PortalLeave {
 }
 
 export type LecturerPortalResult =
-  | { status: 'not_found' | 'unavailable' }
+  | { status: 'not_found' | 'expired' | 'unavailable' }
   | {
       status: 'ok';
-      lecturer: { full_name: string };
+      lecturer: { full_name: string; token_expires_at?: string };
       courses: PortalCourse[];
       leaves: PortalLeave[];
       holidays: Holiday[];
